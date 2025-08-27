@@ -519,10 +519,65 @@ export const HierarchyLevel: React.FC<IHierarchyLevelProps> = ({
         [[] as HierarchyRoom[], [] as HierarchyRoom[]],
     );
 
+    // Sort subspaces to put GOV and DCA at the top
+    subspaces.sort((a, b) => {
+        const aIsDAO = a.name === "GOV" || a.name === "DCA";
+        const bIsDAO = b.name === "GOV" || b.name === "DCA";
+        
+        if (aIsDAO && !bIsDAO) return -1;
+        if (!aIsDAO && bIsDAO) return 1;
+        
+        // Within GOV/DCA, maintain order: GOV first, then DCA
+        if (aIsDAO && bIsDAO) {
+            if (a.name === "GOV" && b.name === "DCA") return -1;
+            if (a.name === "DCA" && b.name === "GOV") return 1;
+        }
+        
+        return 0;
+    });
+
     const newParents = new Set(parents).add(root.room_id);
+    
+    // Separate GOV/DCA spaces from other subspaces and rooms
+    const filteredSubspaces = subspaces.filter((room) => !newParents.has(room.room_id));
+    const govDcaSpaces = filteredSubspaces.filter(space => space.name === "GOV" || space.name === "DCA");
+    const otherSubspaces = filteredSubspaces.filter(space => space.name !== "GOV" && space.name !== "DCA");
+    const otherRooms = uniqBy(childRooms, "room_id");
     return (
         <React.Fragment>
-            {uniqBy(childRooms, "room_id").map((room) => (
+            {/* Render GOV/DCA spaces first */}
+            {govDcaSpaces.map((space) => (
+                <Tile
+                    key={space.room_id}
+                    room={space}
+                    numChildRooms={
+                        space.children_state.filter((ev) => {
+                            const room = hierarchy.roomMap.get(ev.state_key);
+                            return room && roomSet.has(room) && !room.room_type;
+                        }).length
+                    }
+                    suggested={hierarchy.isSuggested(root.room_id, space.room_id)}
+                    selected={selectedMap?.get(root.room_id)?.has(space.room_id)}
+                    onViewRoomClick={() => onViewRoomClick(space.room_id, RoomType.Space)}
+                    onJoinRoomClick={() => onJoinRoomClick(space.room_id, newParents)}
+                    hasPermissions={hasPermissions}
+                    onToggleClick={onToggleClick ? () => onToggleClick(root.room_id, space.room_id) : undefined}
+                >
+                    <HierarchyLevel
+                        root={space}
+                        roomSet={roomSet}
+                        hierarchy={hierarchy}
+                        parents={newParents}
+                        selectedMap={selectedMap}
+                        onViewRoomClick={onViewRoomClick}
+                        onJoinRoomClick={onJoinRoomClick}
+                        onToggleClick={onToggleClick}
+                    />
+                </Tile>
+            ))}
+
+            {/* Then render regular rooms */}
+            {otherRooms.map((room) => (
                 <Tile
                     key={room.room_id}
                     room={room}
@@ -535,37 +590,36 @@ export const HierarchyLevel: React.FC<IHierarchyLevelProps> = ({
                 />
             ))}
 
-            {subspaces
-                .filter((room) => !newParents.has(room.room_id))
-                .map((space) => (
-                    <Tile
-                        key={space.room_id}
-                        room={space}
-                        numChildRooms={
-                            space.children_state.filter((ev) => {
-                                const room = hierarchy.roomMap.get(ev.state_key);
-                                return room && roomSet.has(room) && !room.room_type;
-                            }).length
-                        }
-                        suggested={hierarchy.isSuggested(root.room_id, space.room_id)}
-                        selected={selectedMap?.get(root.room_id)?.has(space.room_id)}
-                        onViewRoomClick={() => onViewRoomClick(space.room_id, RoomType.Space)}
-                        onJoinRoomClick={() => onJoinRoomClick(space.room_id, newParents)}
-                        hasPermissions={hasPermissions}
-                        onToggleClick={onToggleClick ? () => onToggleClick(root.room_id, space.room_id) : undefined}
-                    >
-                        <HierarchyLevel
-                            root={space}
-                            roomSet={roomSet}
-                            hierarchy={hierarchy}
-                            parents={newParents}
-                            selectedMap={selectedMap}
-                            onViewRoomClick={onViewRoomClick}
-                            onJoinRoomClick={onJoinRoomClick}
-                            onToggleClick={onToggleClick}
-                        />
-                    </Tile>
-                ))}
+            {/* Finally render other subspaces */}
+            {otherSubspaces.map((space) => (
+                <Tile
+                    key={space.room_id}
+                    room={space}
+                    numChildRooms={
+                        space.children_state.filter((ev) => {
+                            const room = hierarchy.roomMap.get(ev.state_key);
+                            return room && roomSet.has(room) && !room.room_type;
+                        }).length
+                    }
+                    suggested={hierarchy.isSuggested(root.room_id, space.room_id)}
+                    selected={selectedMap?.get(root.room_id)?.has(space.room_id)}
+                    onViewRoomClick={() => onViewRoomClick(space.room_id, RoomType.Space)}
+                    onJoinRoomClick={() => onJoinRoomClick(space.room_id, newParents)}
+                    hasPermissions={hasPermissions}
+                    onToggleClick={onToggleClick ? () => onToggleClick(root.room_id, space.room_id) : undefined}
+                >
+                    <HierarchyLevel
+                        root={space}
+                        roomSet={roomSet}
+                        hierarchy={hierarchy}
+                        parents={newParents}
+                        selectedMap={selectedMap}
+                        onViewRoomClick={onViewRoomClick}
+                        onJoinRoomClick={onJoinRoomClick}
+                        onToggleClick={onToggleClick}
+                    />
+                </Tile>
+            ))}
         </React.Fragment>
     );
 };

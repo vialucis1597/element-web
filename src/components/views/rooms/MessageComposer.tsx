@@ -77,6 +77,14 @@ function SendButton(props: ISendButtonProps): JSX.Element {
     );
 }
 
+function isDCARoom(room: Room): boolean {
+    // Check if room topic contains DCA-specific content
+    const currentState = room.currentState;
+    const topicEvent = currentState.getStateEvents("m.room.topic", "");
+    const topic = topicEvent?.getContent()?.topic || "";
+    return topic.includes("Contribution Value:");
+}
+
 interface IProps extends MatrixClientProps {
     room: Room;
     resizeNotifier: ResizeNotifier;
@@ -701,6 +709,8 @@ export class MessageComposer extends React.Component<IProps, IState> {
                                         title={
                                             this.state.haveRecording
                                                 ? _t("composer|send_button_voice_message")
+                                                : isDCARoom(this.props.room)
+                                                ? "Request Verification"
                                                 : undefined
                                         }
                                     />

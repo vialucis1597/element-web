@@ -16,6 +16,7 @@ Please see LICENSE files in the repository root for full details.
 
     background-color: $spacePanel-bg-color;
     flex: 0 0 auto;
+    width: 250px; /* Increased default width to accommodate DAO buttons */
     padding: 0;
     margin: 0;
     position: relative;
@@ -480,5 +481,67 @@ Please see LICENSE files in the repository root for full details.
     kbd {
         font-family: inherit;
         text-transform: capitalize;
+    }
+}
+
+/* DAO Space Styles */
+.mx_SpaceItem_dao {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+    min-width: 0; /* Allow shrinking */
+}
+
+.mx_SpaceItem_dao .mx_SpaceButton {
+    flex: 1;
+    min-width: 0; /* Allow shrinking */
+    max-width: 140px; /* Fixed maximum width for space name */
+}
+
+.mx_SpaceItem_dao .mx_SpaceButton .mx_SpaceButton_name {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 100%;
+}
+
+.mx_SpaceItem_daoSubspaces {
+    display: flex;
+    gap: 4px;
+    flex-shrink: 0; /* Prevent shrinking */
+}
+
+.mx_SpaceItem_daoButton {
+    background: var(--cpd-color-bg-subtle-secondary);
+    border: 1px solid var(--cpd-color-border-interactive-secondary);
+    border-radius: 6px;
+    padding: 4px 8px;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--cpd-color-text-secondary);
+    transition: all 0.2s;
+
+    &:hover {
+        background: var(--cpd-color-bg-subtle-primary);
+        color: var(--cpd-color-text-primary);
+    }
+
+    &.mx_SpaceItem_daoButton_gov {
+        border-color: var(--cpd-color-border-success-subtle);
+        color: var(--cpd-color-text-success-primary);
+        
+        &:hover {
+            background: var(--cpd-color-bg-success-subtle);
+        }
+    }
+
+    &.mx_SpaceItem_daoButton_dca {
+        border-color: var(--cpd-color-border-info-subtle);
+        color: var(--cpd-color-text-info-primary);
+        
+        &:hover {
+            background: var(--cpd-color-bg-info-subtle);
+        }
     }
 }

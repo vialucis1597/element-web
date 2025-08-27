@@ -79,6 +79,10 @@ interface IState {
      * Indicates whether the user can change encryption settings for the room.
      */
     canChangeEncryption: boolean;
+    /**
+     * The contribution value for DCA rooms.
+     */
+    contributionValue: string;
 }
 
 export default class CreateRoomDialog extends React.Component<IProps, IState> {
@@ -112,6 +116,7 @@ export default class CreateRoomDialog extends React.Component<IProps, IState> {
             noFederate: SdkConfig.get().default_federate === false,
             nameIsValid: false,
             canChangeEncryption: false,
+            contributionValue: "",
         };
     }
 
@@ -132,7 +137,13 @@ export default class CreateRoomDialog extends React.Component<IProps, IState> {
         }
 
         if (this.state.topic) {
-            createOpts.topic = this.state.topic;
+            if (this.isDCASpace() && this.state.contributionValue) {
+                createOpts.topic = `${this.state.topic}\n\nContribution Value: ${this.state.contributionValue}`;
+            } else {
+                createOpts.topic = this.state.topic;
+            }
+        } else if (this.isDCASpace() && this.state.contributionValue) {
+            createOpts.topic = `Contribution Value: ${this.state.contributionValue}`;
         }
         if (this.state.noFederate) {
             createOpts.creation_content = { "m.federate": false };
@@ -215,6 +226,10 @@ export default class CreateRoomDialog extends React.Component<IProps, IState> {
         this.setState({ topic: ev.target.value });
     };
 
+    private onContributionValueChange = (ev: ChangeEvent<HTMLInputElement>): void => {
+        this.setState({ contributionValue: ev.target.value });
+    };
+
     private onJoinRuleChange = (joinRule: JoinRule): void => {
         this.setState({ joinRule });
     };
@@ -254,6 +269,10 @@ export default class CreateRoomDialog extends React.Component<IProps, IState> {
             },
         ],
     });
+
+    private isDCASpace(): boolean {
+        return this.props.parentSpace?.name === "DCA";
+    }
 
     public render(): React.ReactNode {
         const isVideoRoom = this.props.type === RoomType.ElementVideo || this.props.type === RoomType.UnstableCall;
@@ -376,6 +395,8 @@ export default class CreateRoomDialog extends React.Component<IProps, IState> {
         let title: string;
         if (isVideoRoom) {
             title = _t("create_room|title_video_room");
+        } else if (this.isDCASpace()) {
+            title = "Create a DCA room (Designated Contribution Activities)";
         } else if (this.props.parentSpace || this.state.joinRule === JoinRule.Knock) {
             title = _t("action|create_a_room");
         } else {
@@ -396,18 +417,27 @@ export default class CreateRoomDialog extends React.Component<IProps, IState> {
                     <div className="mx_Dialog_content">
                         <Field
                             ref={this.nameField}
-                            label={_t("common|name")}
+                            label={this.isDCASpace() ? "Contribution Activity Name" : _t("common|name")}
                             onChange={this.onNameChange}
                             onValidate={this.onNameValidate}
                             value={this.state.name}
                             className="mx_CreateRoomDialog_name"
                         />
                         <Field
-                            label={_t("create_room|topic_label")}
+                            label={this.isDCASpace() ? "Verification Method" : _t("create_room|topic_label")}
                             onChange={this.onTopicChange}
                             value={this.state.topic}
                             className="mx_CreateRoomDialog_topic"
                         />
+                        {this.isDCASpace() && (
+                            <Field
+                                label="Contribution Value (B)"
+                                onChange={this.onContributionValueChange}
+                                value={this.state.contributionValue}
+                                className="mx_CreateRoomDialog_contributionValue"
+                                placeholder="Enter value"
+                            />
+                        )}
 
                         <JoinRuleDropdown
                             label={_t("create_room|room_visibility_label")}

@@ -255,7 +255,7 @@ const CreateSpaceButton: React.FC<Pick<IInnerSpacePanelProps, "isPanelCollapsed"
                 className={classNames("mx_SpaceButton_new", {
                     mx_SpaceButton_newCancel: menuDisplayed,
                 })}
-                label={menuDisplayed ? _t("action|cancel") : _t("create_space|label")}
+                label={menuDisplayed ? _t("action|cancel") : "Create DAO"}
                 onClick={onNewClick}
                 isNarrow={isPanelCollapsed}
                 innerRef={handle}

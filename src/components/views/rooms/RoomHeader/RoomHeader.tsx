@@ -55,6 +55,20 @@ import { useScopedRoomContext } from "../../../../contexts/ScopedRoomContext.tsx
 import { ToggleableIcon } from "./toggle/ToggleableIcon.tsx";
 import { CurrentRightPanelPhaseContextProvider } from "../../../../contexts/CurrentRightPanelPhaseContext.tsx";
 
+function isDCARoom(room: Room): boolean {
+    // Check if room topic contains DCA-specific content
+    const currentState = room.currentState;
+    const topicEvent = currentState.getStateEvents("m.room.topic", "");
+    const topic = topicEvent?.getContent()?.topic || "";
+    return topic.includes("Contribution Value:");
+}
+
+function extractContributionValue(topic: string | undefined): string | null {
+    if (!topic) return null;
+    const match = topic.match(/Contribution Value:\s*(.+?)(?:\n|$)/);
+    return match ? match[1].trim() : null;
+}
+
 export default function RoomHeader({
     room,
     additionalButtons,
@@ -68,6 +82,13 @@ export default function RoomHeader({
 
     const roomName = useRoomName(room);
     const joinRule = useRoomState(room, (state) => state.getJoinRule());
+    const roomTopic = useRoomState(room, (state) => {
+        const topicEvent = state.getStateEvents("m.room.topic", "");
+        return topicEvent?.getContent()?.topic;
+    });
+    
+    const isDCA = isDCARoom(room);
+    const contributionValue = isDCA ? extractContributionValue(roomTopic) : null;
 
     const members = useRoomMembers(room, 2500);
     const memberCount = useRoomMemberCount(room, { throttleWait: 2500 });
@@ -315,6 +336,17 @@ export default function RoomHeader({
                                     </Tooltip>
                                 )}
                             </BodyText>
+
+                            {contributionValue && (
+                                <BodyText
+                                    as="div"
+                                    size="sm"
+                                    className="mx_RoomHeader_contributionValue"
+                                    style={{ color: "var(--cpd-color-text-secondary)", marginTop: "2px" }}
+                                >
+                                    Contribution Value: {contributionValue}B
+                                </BodyText>
+                            )}
                         </Box>
                     </button>
 

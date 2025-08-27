@@ -24,6 +24,7 @@ import {
     HistoryVisibility,
     Preset,
     Visibility,
+    JoinRule,
     type MatrixClient,
     type ICreateRoomOpts,
 } from "matrix-js-sdk/src/matrix";
@@ -46,7 +47,7 @@ import { Action } from "../../../dispatcher/actions";
 import { Filter } from "../dialogs/spotlight/Filter";
 import { type OpenSpotlightPayload } from "../../../dispatcher/payloads/OpenSpotlightPayload.ts";
 
-export const createSpace = async (
+export const createDAO = async (
     client: MatrixClient,
     name: string,
     isPublic: boolean,
@@ -56,7 +57,7 @@ export const createSpace = async (
     createOpts: Partial<ICreateRoomOpts> = {},
     otherOpts: Partial<Omit<ICreateOpts, "createOpts">> = {},
 ): Promise<string | null> => {
-    return createRoom(client, {
+    const daoRoomId = await createRoom(client, {
         createOpts: {
             name,
             preset: isPublic ? Preset.PublicChat : Preset.PrivateChat,
@@ -65,7 +66,6 @@ export const createSpace = async (
                     ? Visibility.Public
                     : Visibility.Private,
             power_level_content_override: {
-                // Only allow Admins to write to the timeline to prevent hidden sync spam
                 events_default: 100,
                 invite: isPublic ? 0 : 50,
             },
@@ -82,7 +82,77 @@ export const createSpace = async (
         inlineErrors: true,
         ...otherOpts,
     });
+
+    if (daoRoomId) {
+        await createSubspaces(client, daoRoomId, name);
+    }
+
+    return daoRoomId;
 };
+
+const createSubspaces = async (client: MatrixClient, parentRoomId: string, daoName: string): Promise<void> => {
+    try {
+        // Wait for parent space to be available in client
+        let parentSpace = client.getRoom(parentRoomId);
+        let attempts = 0;
+        while (!parentSpace && attempts < 10) {
+            await new Promise(resolve => setTimeout(resolve, 100));
+            parentSpace = client.getRoom(parentRoomId);
+            attempts++;
+        }
+
+        if (!parentSpace) {
+            logger.error("Parent space not found after waiting");
+            return;
+        }
+
+        await createRoom(client, {
+            createOpts: {
+                name: `GOV`,
+                preset: Preset.PrivateChat,
+                visibility: Visibility.Private,
+                power_level_content_override: {
+                    events_default: 100,
+                    invite: 50,
+                },
+                topic: `Governance space for ${daoName} DAO`,
+            },
+            roomType: RoomType.Space,
+            historyVisibility: HistoryVisibility.Invited,
+            spinner: false,
+            encryption: false,
+            andView: false,
+            inlineErrors: true,
+            parentSpace,
+            joinRule: JoinRule.Restricted,
+        });
+
+        await createRoom(client, {
+            createOpts: {
+                name: `DCA`,
+                preset: Preset.PublicChat,
+                visibility: Visibility.Private,
+                power_level_content_override: {
+                    events_default: 0,
+                    invite: 0,
+                },
+                topic: `Designated Contributing Activity space for ${daoName} DAO`,
+            },
+            roomType: RoomType.Space,
+            historyVisibility: HistoryVisibility.Invited,
+            spinner: false,
+            encryption: false,
+            andView: false,
+            inlineErrors: true,
+            parentSpace,
+            joinRule: JoinRule.Public,
+        });
+    } catch (error) {
+        logger.error("Failed to create subspaces:", error);
+    }
+};
+
+export const createSpace = createDAO;
 
 const SpaceCreateMenuType: React.FC<{
     title: string;
@@ -258,7 +328,7 @@ const SpaceCreateMenu: React.FC<{
         }
 
         try {
-            await createSpace(cli, name, visibility === Visibility.Public, alias, topic, avatar);
+            await createDAO(cli, name, visibility === Visibility.Public, alias, topic, avatar);
 
             onFinished();
         } catch (e) {
@@ -277,25 +347,25 @@ const SpaceCreateMenu: React.FC<{
     if (visibility === null) {
         body = (
             <React.Fragment>
-                <h2>{_t("create_space|label")}</h2>
-                <p>{_t("create_space|explainer")}</p>
+                <h2>Create a DAO</h2>
+                <p>DAOs are autonomous organizations with shared goals. What kind of DAO do you want to create? You can change this later.</p>
 
                 <SpaceCreateMenuType
                     title={_t("common|public")}
-                    description={_t("create_space|public_description")}
+                    description="Open DAO for anyone, best for communities"
                     className="mx_SpaceCreateMenuType_public"
                     onClick={() => setVisibility(Visibility.Public)}
                 />
                 <SpaceCreateMenuType
                     title={_t("common|private")}
-                    description={_t("create_space|private_description")}
+                    description="Invite only, best for yourself or teams"
                     className="mx_SpaceCreateMenuType_private"
                     onClick={() => setVisibility(Visibility.Private)}
                 />
 
                 {supportsSpaceFiltering && (
                     <AccessibleButton kind="primary_outline" onClick={onSearchClick}>
-                        {_t("create_space|search_public_button")}
+                        Search for public DAOs
                     </AccessibleButton>
                 )}
             </React.Fragment>
@@ -311,11 +381,11 @@ const SpaceCreateMenu: React.FC<{
 
                 <h2>
                     {visibility === Visibility.Public
-                        ? _t("create_space|public_heading")
-                        : _t("create_space|private_heading")}
+                        ? "Your public DAO"
+                        : "Your private DAO"}
                 </h2>
                 <p>
-                    {_t("create_space|add_details_prompt")} {_t("create_space|add_details_prompt_2")}
+                    Add some details to help people recognize it. You can change these anytime.
                 </p>
 
                 <SpaceCreateForm
@@ -334,7 +404,7 @@ const SpaceCreateMenu: React.FC<{
                 />
 
                 <AccessibleButton kind="primary" onClick={onSpaceCreateClick} disabled={busy}>
-                    {busy ? _t("create_space|creating") : _t("action|create")}
+                    {busy ? "Creating..." : "Create DAO"}
                 </AccessibleButton>
             </React.Fragment>
         );

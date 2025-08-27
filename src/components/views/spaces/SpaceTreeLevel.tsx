@@ -43,6 +43,24 @@ import SpaceContextMenu from "../context_menus/SpaceContextMenu";
 import { useRovingTabIndex } from "../../../accessibility/RovingTabIndex";
 import { KeyBindingAction } from "../../../accessibility/KeyboardShortcuts";
 
+function isDAOSpace(space: Room): boolean {
+    // Check if space has GOV and DCA subspaces
+    const children = SpaceStore.instance.getChildren(space.roomId);
+    const subspaces = children.filter(child => child.isSpaceRoom());
+    const hasGOV = subspaces.some(child => child.name === "GOV");
+    const hasDCA = subspaces.some(child => child.name === "DCA");
+    return hasGOV && hasDCA;
+}
+
+function getDAOSubspaces(space: Room): { gov?: Room; dca?: Room } {
+    const children = SpaceStore.instance.getChildren(space.roomId);
+    const subspaces = children.filter(child => child.isSpaceRoom());
+    return {
+        gov: subspaces.find(child => child.name === "GOV"),
+        dca: subspaces.find(child => child.name === "DCA"),
+    };
+}
+
 type ButtonProps<T extends keyof HTMLElementTagNameMap> = Omit<
     AccessibleButtonProps<T>,
     "title" | "onClick" | "size" | "element" | "ref"
@@ -353,6 +371,9 @@ export class SpaceItem extends React.PureComponent<IItemProps, IItemState> {
         const { tabIndex, ...restDragHandleProps } = dragHandleProps || {};
         const selected = activeSpaces.includes(space.roomId);
 
+        const isDaoSpace = isDAOSpace(space);
+        const daoSubspaces = isDaoSpace ? getDAOSubspaces(space) : {};
+
         return (
             <li
                 {...otherProps}
@@ -362,25 +383,56 @@ export class SpaceItem extends React.PureComponent<IItemProps, IItemState> {
                 aria-selected={selected}
                 role="treeitem"
             >
-                <SpaceButton
-                    {...restDragHandleProps}
-                    space={space}
-                    className={isInvite ? "mx_SpaceButton_invite" : undefined}
-                    selected={selected}
-                    label={this.state.name}
-                    contextMenuTooltip={_t("space|context_menu|options")}
-                    notificationState={notificationState}
-                    isNarrow={isPanelCollapsed}
-                    size={isNested ? "24px" : "32px"}
-                    onKeyDown={this.onKeyDown}
-                    ContextMenuComponent={
-                        this.props.space.getMyMembership() === KnownMembership.Join ? SpaceContextMenu : undefined
-                    }
-                >
-                    {toggleCollapseButton}
-                </SpaceButton>
+                <div className={isDaoSpace ? "mx_SpaceItem_dao" : undefined}>
+                    <SpaceButton
+                        {...restDragHandleProps}
+                        space={space}
+                        className={isInvite ? "mx_SpaceButton_invite" : undefined}
+                        selected={selected}
+                        label={this.state.name}
+                        contextMenuTooltip={_t("space|context_menu|options")}
+                        notificationState={notificationState}
+                        isNarrow={isPanelCollapsed}
+                        size={isNested ? "24px" : "32px"}
+                        onKeyDown={this.onKeyDown}
+                        ContextMenuComponent={
+                            this.props.space.getMyMembership() === KnownMembership.Join ? SpaceContextMenu : undefined
+                        }
+                    >
+                        {toggleCollapseButton}
+                    </SpaceButton>
 
-                {childItems}
+                    {isDaoSpace && !isPanelCollapsed && (
+                        <div className="mx_SpaceItem_daoSubspaces">
+                            {daoSubspaces.gov && (
+                                <AccessibleButton
+                                    className="mx_SpaceItem_daoButton mx_SpaceItem_daoButton_gov"
+                                    onClick={() => defaultDispatcher.dispatch({
+                                        action: Action.ViewRoom,
+                                        room_id: daoSubspaces.gov!.roomId,
+                                        metricsTrigger: "SpacePanel",
+                                    })}
+                                >
+                                    GOV
+                                </AccessibleButton>
+                            )}
+                            {daoSubspaces.dca && (
+                                <AccessibleButton
+                                    className="mx_SpaceItem_daoButton mx_SpaceItem_daoButton_dca"
+                                    onClick={() => defaultDispatcher.dispatch({
+                                        action: Action.ViewRoom,
+                                        room_id: daoSubspaces.dca!.roomId,
+                                        metricsTrigger: "SpacePanel",
+                                    })}
+                                >
+                                    DCA
+                                </AccessibleButton>
+                            )}
+                        </div>
+                    )}
+                </div>
+
+                {!isDaoSpace && childItems}
             </li>
         );
     }

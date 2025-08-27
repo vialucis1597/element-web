@@ -298,3 +298,68 @@ Please see LICENSE files in the repository root for full details.
         }
     }
 }
+
+/* DAO Landing Page Styles */
+.mx_SpaceRoomView_landing_daoButtons {
+    display: flex;
+    gap: 12px;
+    margin: 16px 0 24px 0;
+    justify-content: flex-start;
+}
+
+.mx_SpaceRoomView_landing_daoButton {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 12px 16px;
+    border: 1px solid var(--cpd-color-border-interactive-secondary);
+    border-radius: 8px;
+    background: var(--cpd-color-bg-canvas-default);
+    transition: all 0.2s ease;
+    min-width: 120px;
+    text-align: center;
+
+    &:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+        border-color: var(--cpd-color-border-interactive-primary);
+    }
+
+    &.mx_SpaceRoomView_landing_daoButton_gov {
+        border-color: var(--cpd-color-border-success-subtle);
+        
+        &:hover {
+            border-color: var(--cpd-color-border-success-primary);
+            background: var(--cpd-color-bg-success-subtle);
+        }
+        
+        .mx_SpaceRoomView_landing_daoButton_title {
+            color: var(--cpd-color-text-success-primary);
+        }
+    }
+
+    &.mx_SpaceRoomView_landing_daoButton_dca {
+        border-color: var(--cpd-color-border-info-subtle);
+        
+        &:hover {
+            border-color: var(--cpd-color-border-info-primary);
+            background: var(--cpd-color-bg-info-subtle);
+        }
+        
+        .mx_SpaceRoomView_landing_daoButton_title {
+            color: var(--cpd-color-text-info-primary);
+        }
+    }
+}
+
+.mx_SpaceRoomView_landing_daoButton_title {
+    font-size: 14px;
+    font-weight: 600;
+    margin-bottom: 4px;
+}
+
+.mx_SpaceRoomView_landing_daoButton_description {
+    font-size: 12px;
+    color: var(--cpd-color-text-secondary);
+    line-height: 1.3;
+}

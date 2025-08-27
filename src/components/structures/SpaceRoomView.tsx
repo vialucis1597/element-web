@@ -13,6 +13,7 @@ import React, { type JSX, useCallback, useContext, useRef, useState } from "reac
 
 import MatrixClientContext from "../../contexts/MatrixClientContext";
 import createRoom, { type IOpts } from "../../createRoom";
+import SpaceStore from "../../stores/spaces/SpaceStore";
 import { shouldShowComponent } from "../../customisations/helpers/UIComponents";
 import { Action } from "../../dispatcher/actions";
 import defaultDispatcher from "../../dispatcher/dispatcher";
@@ -205,6 +206,27 @@ const SpaceLanding: React.FC<{ space: Room }> = ({ space }) => {
     const myMembership = useMyRoomMembership(space);
     const userId = cli.getSafeUserId();
 
+    // Check if this is a DAO space
+    const isDAOSpace = (space: Room): boolean => {
+        const children = SpaceStore.instance.getChildren(space.roomId);
+        const subspaces = children.filter(child => child.isSpaceRoom());
+        const hasGOV = subspaces.some(child => child.name === "GOV");
+        const hasDCA = subspaces.some(child => child.name === "DCA");
+        return hasGOV && hasDCA;
+    };
+
+    const getDAOSubspaces = (space: Room): { gov?: Room; dca?: Room } => {
+        const children = SpaceStore.instance.getChildren(space.roomId);
+        const subspaces = children.filter(child => child.isSpaceRoom());
+        return {
+            gov: subspaces.find(child => child.name === "GOV"),
+            dca: subspaces.find(child => child.name === "DCA"),
+        };
+    };
+
+    const isDaoSpace = isDAOSpace(space);
+    const daoSubspaces = isDaoSpace ? getDAOSubspaces(space) : {};
+
     const storeIsShowingSpaceMembers = useCallback(
         () =>
             RightPanelStore.instance.isOpenForRoom(space.roomId) &&
@@ -281,6 +303,37 @@ const SpaceLanding: React.FC<{ space: Room }> = ({ space }) => {
                 </div>
             </div>
             <RoomTopic room={space} className="mx_SpaceRoomView_landing_topic" />
+
+            {isDaoSpace && (
+                <div className="mx_SpaceRoomView_landing_daoButtons">
+                    {daoSubspaces.gov && (
+                        <AccessibleButton
+                            className="mx_SpaceRoomView_landing_daoButton mx_SpaceRoomView_landing_daoButton_gov"
+                            onClick={() => defaultDispatcher.dispatch({
+                                action: Action.ViewRoom,
+                                room_id: daoSubspaces.gov!.roomId,
+                                metricsTrigger: "SpaceLanding",
+                            })}
+                        >
+                            <div className="mx_SpaceRoomView_landing_daoButton_title">GOV</div>
+                            <div className="mx_SpaceRoomView_landing_daoButton_description">Governance & Voting</div>
+                        </AccessibleButton>
+                    )}
+                    {daoSubspaces.dca && (
+                        <AccessibleButton
+                            className="mx_SpaceRoomView_landing_daoButton mx_SpaceRoomView_landing_daoButton_dca"
+                            onClick={() => defaultDispatcher.dispatch({
+                                action: Action.ViewRoom,
+                                room_id: daoSubspaces.dca!.roomId,
+                                metricsTrigger: "SpaceLanding",
+                            })}
+                        >
+                            <div className="mx_SpaceRoomView_landing_daoButton_title">DCA</div>
+                            <div className="mx_SpaceRoomView_landing_daoButton_description">Designated Contributing Activity</div>
+                        </AccessibleButton>
+                    )}
+                </div>
+            )}
 
             <SpaceHierarchy space={space} showRoom={showRoom} additionalButtons={addRoomButton} />
         </div>
