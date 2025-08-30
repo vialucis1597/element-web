@@ -220,12 +220,18 @@ module.exports = (env, argv) => {
                 "fs": false,
                 "net": false,
                 "tls": false,
-                "crypto": false,
+                "crypto": require.resolve("crypto-browserify"),
 
                 // Polyfill needed by counterpart
                 "util": require.resolve("util/"),
                 // Polyfill needed by sentry
                 "process/browser": require.resolve("process/browser"),
+                
+                // Polyfills needed by mnemonic wallet packages
+                "stream": require.resolve("stream-browserify"),
+                "buffer": require.resolve("buffer"),
+                "assert": require.resolve("assert"),
+                "vm": require.resolve("vm-browserify"),
             },
 
             // Enable the custom "wasm-esm" export condition [1] to indicate to
@@ -578,6 +584,12 @@ module.exports = (env, argv) => {
 
         plugins: [
             ...moduleReplacementPlugins,
+            
+            // Provide global polyfills for Node.js modules
+            new webpack.ProvidePlugin({
+                Buffer: ['buffer', 'Buffer'],
+                process: 'process/browser',
+            }),
 
             // This exports our CSS using the splitChunks and loaders above.
             new MiniCssExtractPlugin({

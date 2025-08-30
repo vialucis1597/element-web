@@ -32,6 +32,7 @@ import sanitizeHtml from "sanitize-html";
 import PosthogTrackers from "../../PosthogTrackers";
 import { DecryptionFailureTracker } from "../../DecryptionFailureTracker";
 import { type IMatrixClientCreds, MatrixClientPeg } from "../../MatrixClientPeg";
+import { DAOContributionTracker } from "../../utils/DAOContributionTracker";
 import PlatformPeg from "../../PlatformPeg";
 import SdkConfig, { type ConfigOptions } from "../../SdkConfig";
 import dis from "../../dispatcher/dispatcher";
@@ -1377,6 +1378,9 @@ export default class MatrixChat extends React.PureComponent<IProps, IState> {
         ThemeController.isLogin = false;
         this.themeWatcher?.recheck();
         StorageManager.tryPersistStorage();
+
+        // Initialize DAO Contribution Tracker (지연 초기화로 성능 개선)
+        // DAOContributionTracker.getInstance().initialize();
 
         await this.onShowPostLoginScreen();
     }

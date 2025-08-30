@@ -20,6 +20,7 @@ import {
     RoomStateEvent,
     EventType,
     type Relations,
+    type Room,
 } from "matrix-js-sdk/src/matrix";
 import classNames from "classnames";
 import {
@@ -62,6 +63,120 @@ import { type ButtonEvent } from "../elements/AccessibleButton";
 import PinningUtils from "../../../utils/PinningUtils";
 import PosthogTrackers from "../../../PosthogTrackers.ts";
 import { HideActionButton } from "./HideActionButton.tsx";
+import SpaceStore from "../../../stores/spaces/SpaceStore";
+
+// Check if room is a DCA room (child of DAO space with name "DCA")
+function isDCARoom(room: Room): boolean {
+    if (!room) return false;
+    
+    // Check if room name is "DCA"
+    if (room.name !== "DCA") return false;
+    
+    // Check if this room is a space (DCA should be a subspace)
+    if (!room.isSpaceRoom()) return false;
+    
+    // Check if parent is a DAO space
+    const client = room.client;
+    const spaceEvents = room.currentState.getStateEvents(EventType.SpaceParent);
+    
+    for (const event of spaceEvents) {
+        const parentRoomId = event.getStateKey();
+        if (!parentRoomId) continue;
+        
+        const parentRoom = client.getRoom(parentRoomId);
+        if (!parentRoom?.isSpaceRoom()) continue;
+        
+        // Check if parent is a DAO (has both GOV and DCA children)
+        const children = SpaceStore.instance.getChildren(parentRoomId);
+        const subspaces = children.filter(child => child.isSpaceRoom());
+        const hasGOV = subspaces.some(child => child.name === "GOV");
+        const hasDCA = subspaces.some(child => child.name === "DCA");
+        
+        if (hasGOV && hasDCA) {
+            return true;
+        }
+    }
+    
+    return false;
+}
+
+// Check if room is inside DCA space (for rooms within DCA)
+function isInDCASpace(room: Room): boolean {
+    if (!room) return false;
+    
+    const client = room.client;
+    const spaceEvents = room.currentState.getStateEvents(EventType.SpaceParent);
+    
+    for (const event of spaceEvents) {
+        const parentRoomId = event.getStateKey();
+        if (!parentRoomId) continue;
+        
+        const parentRoom = client.getRoom(parentRoomId);
+        if (!parentRoom) continue;
+        
+        // Check if direct parent is DCA
+        if (parentRoom.name === "DCA" && parentRoom.isSpaceRoom()) {
+            return true;
+        }
+        
+        // Recursively check if parent is in DCA space
+        if (isInDCASpace(parentRoom)) {
+            return true;
+        }
+    }
+    
+    return false;
+}
+
+// Find DAO space from room
+function findDAOSpace(room: Room): Room | null {
+    if (!room) return null;
+    
+    const client = room.client;
+    
+    // If this is already a DAO space, return it
+    if (room.isSpaceRoom()) {
+        const children = SpaceStore.instance.getChildren(room.roomId);
+        const subspaces = children.filter(child => child.isSpaceRoom());
+        const hasGOV = subspaces.some(child => child.name === "GOV");
+        const hasDCA = subspaces.some(child => child.name === "DCA");
+        if (hasGOV && hasDCA) {
+            return room;
+        }
+    }
+    
+    // Look for DAO space in parents
+    const spaceEvents = room.currentState.getStateEvents(EventType.SpaceParent);
+    
+    for (const event of spaceEvents) {
+        const parentRoomId = event.getStateKey();
+        if (!parentRoomId) continue;
+        
+        const parentRoom = client.getRoom(parentRoomId);
+        if (!parentRoom) continue;
+        
+        // Recursively check parent
+        const daoSpace = findDAOSpace(parentRoom);
+        if (daoSpace) return daoSpace;
+    }
+    
+    return null;
+}
+
+// Check if user has verification authority in DAO space
+function hasVerificationAuthority(room: Room, userId: string): boolean {
+    const daoSpace = findDAOSpace(room);
+    if (!daoSpace) return false;
+    
+    // Get power levels from DAO space
+    const plEvent = daoSpace.currentState.getStateEvents(EventType.RoomPowerLevels, "");
+    const plContent = plEvent?.getContent() ?? {};
+    
+    const userLevel = plContent.users?.[userId] ?? plContent.users_default ?? 0;
+    const verificationLevel = plContent.verification ?? 75;
+    
+    return userLevel >= verificationLevel;
+}
 
 interface IOptionsButtonProps {
     mxEvent: MatrixEvent;
@@ -152,8 +267,21 @@ const ReactButton: React.FC<IReactButtonProps> = ({ mxEvent, reactions, onFocusC
         onFocusChange(menuDisplayed);
     }, [onFocusChange, menuDisplayed]);
 
+    // Check if this is a DCA room and user has verification authority
+    const room = mxEvent.getRoomId() ? MatrixClientPeg.safeGet().getRoom(mxEvent.getRoomId()!) : null;
+    const currentUserId = MatrixClientPeg.safeGet().getSafeUserId();
+    const isDCA = room ? (isDCARoom(room) || isInDCASpace(room)) : false;
+    const canReact = !isDCA || hasVerificationAuthority(room!, currentUserId);
+    
+    // Debug logging
+    if (room && isDCA) {
+        console.log("DCA Room detected:", room.name);
+        console.log("User level:", currentUserId);
+        console.log("Can react:", canReact);
+    }
+
     let contextMenu: JSX.Element | undefined;
-    if (menuDisplayed && button.current) {
+    if (menuDisplayed && button.current && canReact) {
         const buttonRect = button.current.getBoundingClientRect();
         contextMenu = (
             <ContextMenu {...aboveLeftOf(buttonRect)} onFinished={closeMenu} managed={false}>
@@ -168,27 +296,57 @@ const ReactButton: React.FC<IReactButtonProps> = ({ mxEvent, reactions, onFocusC
             e.preventDefault();
             e.stopPropagation();
 
+            if (!canReact) return;
+
+            // DCA 룸에서는 바로 ✅ 리액션 추가
+            if (isDCA) {
+                const client = MatrixClientPeg.safeGet();
+                const eventId = mxEvent.getId();
+                const roomId = mxEvent.getRoomId();
+                
+                if (!eventId || !roomId) {
+                    console.error("Missing event ID or room ID for reaction");
+                    return;
+                }
+                
+                const reactionKey = "✅";
+                const annotation = {
+                    "m.relates_to": {
+                        "rel_type": RelationType.Annotation as const,
+                        "event_id": eventId,
+                        "key": reactionKey,
+                    },
+                };
+                
+                client.sendEvent(roomId, EventType.Reaction, annotation).catch(err => {
+                    console.error("Failed to send reaction:", err);
+                });
+                return;
+            }
+
             openMenu();
             // when the context menu is opened directly, e.g. via mouse click, the onFocus handler which tracks
             // the element that is currently focused is skipped. So we want to call onFocus manually to keep the
             // position in the page even when someone is clicking around.
             onFocus();
         },
-        [openMenu, onFocus],
+        [openMenu, onFocus, canReact, isDCA, mxEvent],
     );
 
     return (
         <React.Fragment>
             <ContextMenuTooltipButton
-                className="mx_MessageActionBar_iconButton"
-                title={_t("action|react")}
-                onClick={onClick}
-                onContextMenu={onClick}
-                isExpanded={menuDisplayed}
+                className={`mx_MessageActionBar_iconButton ${!canReact ? 'mx_MessageActionBar_iconButton_disabled' : ''}`}
+                title={canReact ? _t("action|react") : "Verification authority required"}
+                onClick={canReact ? onClick : (e: ButtonEvent) => { e.preventDefault(); e.stopPropagation(); }}
+                onContextMenu={canReact ? onClick : (e: ButtonEvent) => { e.preventDefault(); e.stopPropagation(); }}
+                isExpanded={menuDisplayed && canReact}
                 ref={button}
-                onFocus={onFocus}
-                tabIndex={isActive ? 0 : -1}
+                onFocus={canReact ? onFocus : undefined}
+                tabIndex={isActive && canReact ? 0 : -1}
                 placement="left"
+                disabled={!canReact}
+                style={!canReact ? { opacity: 0.5, cursor: 'not-allowed' } : undefined}
             >
                 <EmojiIcon />
             </ContextMenuTooltipButton>

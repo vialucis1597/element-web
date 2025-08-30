@@ -1,0 +1,291 @@
+/*
+Copyright 2024 New Vector Ltd.
+
+SPDX-License-Identifier: AGPL-3.0-only OR GPL-3.0-only OR LicenseRef-Element-Commercial
+Please see LICENSE files in the repository root for full details.
+*/
+
+.mx_DAOWalletPanel {
+    background: var(--cpd-color-bg-canvas-default);
+    border-radius: 8px;
+    padding: 20px;
+    width: 600px;
+    max-width: 90vw;
+    max-height: 80vh;
+    overflow-y: auto;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+}
+
+.mx_DAOWalletPanel_header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+    border-bottom: 1px solid var(--cpd-color-border-interactive-secondary);
+    padding-bottom: 15px;
+}
+
+.mx_DAOWalletPanel_header h2 {
+    margin: 0;
+    color: var(--cpd-color-text-primary);
+}
+
+.mx_DAOWalletPanel_closeButton {
+    background: none;
+    border: none;
+    font-size: 20px;
+    cursor: pointer;
+    color: var(--cpd-color-text-secondary);
+    padding: 5px;
+    border-radius: 4px;
+}
+
+.mx_DAOWalletPanel_closeButton:hover {
+    background: var(--cpd-color-bg-subtle-secondary);
+}
+
+.mx_DAOWalletPanel_setup {
+    text-align: center;
+}
+
+.mx_DAOWalletPanel_setup h3 {
+    margin-bottom: 10px;
+    color: var(--cpd-color-text-primary);
+}
+
+.mx_DAOWalletPanel_setup p {
+    color: var(--cpd-color-text-secondary);
+    margin-bottom: 30px;
+    line-height: 1.5;
+}
+
+.mx_DAOWalletPanel_setupActions {
+    display: flex;
+    gap: 15px;
+    justify-content: center;
+    flex-wrap: wrap;
+}
+
+.mx_DAOWalletPanel_createButton,
+.mx_DAOWalletPanel_restoreButton {
+    padding: 12px 24px;
+    border-radius: 6px;
+    font-weight: 500;
+    min-width: 140px;
+}
+
+.mx_DAOWalletPanel_mnemonicInput {
+    margin-top: 20px;
+}
+
+.mx_DAOWalletPanel_mnemonicActions {
+    display: flex;
+    gap: 10px;
+    justify-content: center;
+    margin-top: 15px;
+    flex-wrap: wrap;
+}
+
+.mx_DAOWalletPanel_error {
+    background: var(--cpd-color-bg-critical-subtle);
+    color: var(--cpd-color-text-critical-primary);
+    padding: 12px;
+    border-radius: 6px;
+    margin-bottom: 20px;
+    border: 1px solid var(--cpd-color-border-critical-subtle);
+}
+
+.mx_DAOWalletPanel_walletInfo {
+    display: flex;
+    flex-direction: column;
+    gap: 25px;
+}
+
+.mx_DAOWalletPanel_address h4,
+.mx_DAOWalletPanel_totalContributions h4,
+.mx_DAOWalletPanel_balances h4 {
+    margin: 0 0 10px 0;
+    color: var(--cpd-color-text-primary);
+    font-size: 16px;
+    font-weight: 600;
+}
+
+.mx_DAOWalletPanel_addressValue {
+    background: var(--cpd-color-bg-subtle-secondary);
+    padding: 12px;
+    border-radius: 6px;
+    font-family: var(--cpd-font-family-mono);
+    font-size: 14px;
+    word-break: break-all;
+    color: var(--cpd-color-text-secondary);
+}
+
+.mx_DAOWalletPanel_totalValue {
+    font-size: 24px;
+    font-weight: 700;
+    color: var(--cpd-color-text-success-primary);
+}
+
+.mx_DAOWalletPanel_emptyBalances {
+    text-align: center;
+    color: var(--cpd-color-text-secondary);
+    background: var(--cpd-color-bg-subtle-secondary);
+    padding: 30px;
+    border-radius: 8px;
+    line-height: 1.5;
+}
+
+.mx_DAOWalletPanel_balancesList {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.mx_DAOWalletPanel_balanceItem {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 15px;
+    background: var(--cpd-color-bg-subtle-secondary);
+    border-radius: 8px;
+    border: 1px solid var(--cpd-color-border-interactive-secondary);
+}
+
+.mx_DAOWalletPanel_daoInfo {
+    flex: 1;
+}
+
+.mx_DAOWalletPanel_daoName {
+    font-weight: 600;
+    color: var(--cpd-color-text-primary);
+    margin-bottom: 4px;
+}
+
+.mx_DAOWalletPanel_daoCurrency {
+    font-size: 12px;
+    color: var(--cpd-color-text-secondary);
+}
+
+.mx_DAOWalletPanel_balanceAmount {
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--cpd-color-text-success-primary);
+    margin-right: 15px;
+}
+
+.mx_DAOWalletPanel_contributionValue {
+    font-size: 11px;
+    color: var(--cpd-color-text-secondary);
+    text-align: right;
+}
+
+.mx_DAOWalletPanel_actions {
+    display: flex;
+    gap: 12px;
+    justify-content: center;
+    flex-wrap: wrap;
+    margin-top: 10px;
+}
+
+.mx_DAOWalletPanel_exportButton,
+.mx_DAOWalletPanel_clearButton {
+    padding: 10px 20px;
+    border-radius: 6px;
+    font-weight: 500;
+    min-width: 120px;
+}
+
+/* SpacePanel 지갑 버튼 스타일 */
+.mx_SpacePanel_walletSection {
+    padding: 8px;
+}
+
+.mx_SpacePanel_walletButton {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 8px;
+    background: var(--cpd-color-bg-action-primary-rest);
+    color: var(--cpd-color-text-on-solid-primary);
+    border: none;
+    border-radius: 6px;
+    font-weight: 500;
+    font-size: 14px;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.mx_SpacePanel_walletButton:hover {
+    background: var(--cpd-color-bg-action-primary-hovered);
+}
+
+.mx_SpacePanel_walletButton.collapsed {
+    padding: 6px;
+    font-size: 18px;
+}
+
+/* 지갑 모달 스타일 */
+.mx_SpacePanel_walletModal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 9999;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.mx_SpacePanel_walletModalBackdrop {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.5);
+    backdrop-filter: blur(4px);
+}
+
+.mx_SpacePanel_walletModalContent {
+    position: relative;
+    z-index: 1;
+    animation: modalSlideIn 0.3s ease-out;
+}
+
+@keyframes modalSlideIn {
+    from {
+        opacity: 0;
+        transform: translateY(-20px) scale(0.95);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+/* 반응형 디자인 */
+@media (max-width: 768px) {
+    .mx_DAOWalletPanel {
+        width: 95vw;
+        margin: 10px;
+        padding: 15px;
+    }
+
+    .mx_DAOWalletPanel_balanceItem {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 10px;
+    }
+
+    .mx_DAOWalletPanel_balanceAmount {
+        margin-right: 0;
+        align-self: flex-end;
+    }
+
+    .mx_DAOWalletPanel_setupActions {
+        flex-direction: column;
+        align-items: center;
+    }
+}
