@@ -31,6 +31,7 @@ import {
     DeleteIcon,
     RestartIcon,
     ThreadsIcon,
+    CheckIcon,
 } from "@vector-im/compound-design-tokens/assets/web/icons";
 
 import { Icon as EditIcon } from "../../../../res/img/element-icons/room/message-bar/edit.svg";
@@ -298,28 +299,31 @@ const ReactButton: React.FC<IReactButtonProps> = ({ mxEvent, reactions, onFocusC
 
             if (!canReact) return;
 
-            // DCA 룸에서는 바로 ✅ 리액션 추가
+            // DCA 룸에서는 바로 ✅ 리액션 추가 (기여증명 발행)
             if (isDCA) {
                 const client = MatrixClientPeg.safeGet();
                 const eventId = mxEvent.getId();
                 const roomId = mxEvent.getRoomId();
                 
                 if (!eventId || !roomId) {
-                    console.error("Missing event ID or room ID for reaction");
+                    console.error("Missing event ID or room ID for verification");
                     return;
                 }
                 
                 const reactionKey = "✅";
-                const annotation = {
+                const verificationData = {
                     "m.relates_to": {
                         "rel_type": RelationType.Annotation as const,
                         "event_id": eventId,
                         "key": reactionKey,
                     },
+                    "verification": true,
+                    "issued_at": Date.now(),
+                    "issuer": client.getSafeUserId(),
                 };
                 
-                client.sendEvent(roomId, EventType.Reaction, annotation).catch(err => {
-                    console.error("Failed to send reaction:", err);
+                client.sendEvent(roomId, EventType.Reaction, verificationData).catch(err => {
+                    console.error("Failed to send verification:", err);
                 });
                 return;
             }
@@ -337,7 +341,13 @@ const ReactButton: React.FC<IReactButtonProps> = ({ mxEvent, reactions, onFocusC
         <React.Fragment>
             <ContextMenuTooltipButton
                 className={`mx_MessageActionBar_iconButton ${!canReact ? 'mx_MessageActionBar_iconButton_disabled' : ''}`}
-                title={canReact ? _t("action|react") : "Verification authority required"}
+                title={
+                    !canReact 
+                        ? "Verification authority required" 
+                        : isDCA 
+                            ? "Verification" 
+                            : _t("action|react")
+                }
                 onClick={canReact ? onClick : (e: ButtonEvent) => { e.preventDefault(); e.stopPropagation(); }}
                 onContextMenu={canReact ? onClick : (e: ButtonEvent) => { e.preventDefault(); e.stopPropagation(); }}
                 isExpanded={menuDisplayed && canReact}
@@ -348,7 +358,7 @@ const ReactButton: React.FC<IReactButtonProps> = ({ mxEvent, reactions, onFocusC
                 disabled={!canReact}
                 style={!canReact ? { opacity: 0.5, cursor: 'not-allowed' } : undefined}
             >
-                <EmojiIcon />
+                {isDCA ? <CheckIcon /> : <EmojiIcon />}
             </ContextMenuTooltipButton>
 
             {contextMenu}

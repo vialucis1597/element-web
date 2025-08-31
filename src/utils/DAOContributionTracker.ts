@@ -17,7 +17,7 @@ export class DAOContributionTracker {
     private static instance: DAOContributionTracker;
     private wallet = MnemonicWallet.getInstance();
     private recentContributions: Map<string, number> = new Map(); // userId+daoId -> timestamp
-    private readonly CONTRIBUTION_COOLDOWN = 60000; // 1분 쿨다운
+    private readonly CONTRIBUTION_COOLDOWN = 0; // 쿨다운 없음
     private isInitialized = false;
 
     static getInstance(): DAOContributionTracker {
@@ -127,39 +127,15 @@ export class DAOContributionTracker {
         this.recentContributions.set(key, Date.now());
     }
 
-    // 채팅 이벤트 처리
+    // 채팅 이벤트 처리 (비활성화 - Verification 버튼만 사용)
     handleChatEvent(event: MatrixEvent): void {
-        try {
-            // 자신의 메시지만 처리
-            const currentUserId = MatrixClientPeg.safeGet().getSafeUserId();
-            if (event.getSender() !== currentUserId) return;
-
-            // 텍스트 메시지인지 확인
-            if (event.getType() !== EventType.RoomMessage || event.getContent().msgtype !== MsgType.Text) {
-                return;
-            }
-
-            const roomId = event.getRoomId();
-            if (!roomId || !this.isDCARoom(roomId)) return;
-
-            const daoInfo = this.getDAOInfo(roomId);
-            if (!daoInfo) return;
-
-            // 쿨다운 확인
-            if (this.isOnCooldown(currentUserId, daoInfo.daoId)) {
-                console.log("Contribution on cooldown for", daoInfo.daoName);
-                return;
-            }
-
-            // 지갑에 기여가치 지급
-            this.awardContribution(currentUserId, daoInfo, 'chat');
-        } catch (error) {
-            console.error("💥 Error handling chat event:", error);
-        }
+        // 채팅으로는 기여증명 발행하지 않음
+        console.log("Chat event ignored - only Verification button awards contributions");
+        return;
     }
 
-    // React 이벤트 처리
-    handleReactEvent(event: MatrixEvent): void {
+    // Verification 이벤트 처리 (일반 react와 구분)
+    handleVerificationEvent(event: MatrixEvent): void {
         try {
             console.log("👍 React event received:", event.getType(), event.getContent());
             
@@ -169,6 +145,14 @@ export class DAOContributionTracker {
                 console.log("Not an annotation reaction, skipping");
                 return;
             }
+
+            // Verification 이벤트인지 확인 (일반 react는 무시)
+            if (!content.verification || content.verification !== true) {
+                console.log("Not a verification event, skipping contribution award");
+                return;
+            }
+            
+            console.log("✅ Verification event detected, processing contribution award");
 
             const roomId = event.getRoomId();
             if (!roomId || !this.isDCARoom(roomId)) {
@@ -299,20 +283,34 @@ export class DAOContributionTracker {
         // 매우 제한적인 타임라인 이벤트 리스너 (DCA 룸 + 기여 관련 이벤트만)
         client.on("Room.timeline" as any, (event: MatrixEvent, room: Room | undefined) => {
             try {
-                // 빠른 필터링: 기여 관련 이벤트가 아니면 바로 종료
+                // 디버깅: 모든 이벤트 로깅
                 const eventType = event.getType();
-                const isMessage = eventType === EventType.RoomMessage;
-                const isReaction = event.getContent()?.["m.relates_to"]?.rel_type === RelationType.Annotation;
+                const content = event.getContent();
+                console.log("🔍 Timeline event:", {
+                    type: eventType,
+                    content: content,
+                    verification: content?.verification,
+                    relatesTo: content?.["m.relates_to"]
+                });
                 
-                if (!isMessage && !isReaction) {
+                // 빠른 필터링: Verification 이벤트만 처리
+                const isVerification = content?.["m.relates_to"]?.rel_type === RelationType.Annotation && content?.verification === true;
+                
+                if (!isVerification) {
+                    console.log("❌ Not a verification event, skipping");
                     return;
                 }
+                
+                console.log("✅ Verification event found!");
 
                 // DCA 룸이 아니면 바로 종료
                 const roomId = event.getRoomId();
+                console.log("🔍 Checking if DCA room:", roomId);
                 if (!roomId || !this.isDCARoom(roomId)) {
+                    console.log("❌ Not a DCA room, skipping");
                     return;
                 }
+                console.log("✅ DCA room confirmed!");
                 
                 console.log("📧 DCA Timeline event:", {
                     type: eventType,
@@ -321,13 +319,9 @@ export class DAOContributionTracker {
                     roomId: roomId
                 });
                 
-                // 이벤트 처리
-                if (isMessage) {
-                    this.handleChatEvent(event);
-                } else if (isReaction) {
-                    console.log("👍 DCA Reaction detected");
-                    this.handleReactEvent(event);
-                }
+                // Verification 이벤트만 처리
+                console.log("✅ DCA Verification detected");
+                this.handleVerificationEvent(event);
             } catch (error) {
                 console.error("💥 Error processing DCA timeline event:", error);
             }
