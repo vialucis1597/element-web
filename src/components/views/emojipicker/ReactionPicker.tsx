@@ -16,6 +16,7 @@ import dis from "../../../dispatcher/dispatcher";
 import { Action } from "../../../dispatcher/actions";
 import RoomContext from "../../../contexts/RoomContext";
 import { type FocusComposerPayload } from "../../../dispatcher/payloads/FocusComposerPayload";
+import SpaceStore from "../../../stores/spaces/SpaceStore";
 
 interface IProps {
     mxEvent: MatrixEvent;
@@ -30,6 +31,35 @@ interface IState {
 class ReactionPicker extends React.Component<IProps, IState> {
     public static contextType = RoomContext;
     declare public context: React.ContextType<typeof RoomContext>;
+
+    // DCA 룸인지 확인
+    private isDCARoom(roomId: string): boolean {
+        const client = MatrixClientPeg.safeGet();
+        const room = client.getRoom(roomId);
+        if (!room) return false;
+        
+        const spaceEvents = room.currentState.getStateEvents(EventType.SpaceParent);
+        
+        for (const event of spaceEvents) {
+            const parentRoomId = event.getStateKey();
+            if (!parentRoomId) continue;
+
+            const parentRoom = client.getRoom(parentRoomId);
+            if (!parentRoom) continue;
+            
+            // 부모가 DCA 스페이스인지 확인
+            if (parentRoom.isSpaceRoom() && parentRoom.name === "DCA") {
+                return true;
+            }
+            
+            // 재귀적으로 부모 체크
+            if (this.isDCARoom(parentRoomId)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
 
     public constructor(props: IProps) {
         super(props);
@@ -91,6 +121,12 @@ class ReactionPicker extends React.Component<IProps, IState> {
         const myReactions = this.getReactions();
         if (myReactions.hasOwnProperty(reaction)) {
             if (this.props.mxEvent.isRedacted() || !this.context.canSelfRedact) return false;
+
+            // DCA 룸에서 ✅ 반응 제거 차단
+            if (reaction === "✅" && this.isDCARoom(this.props.mxEvent.getRoomId()!)) {
+                console.log("🚫 Verification reaction removal blocked in DCA room");
+                return false;
+            }
 
             MatrixClientPeg.safeGet().redactEvent(this.props.mxEvent.getRoomId()!, myReactions[reaction]);
             dis.dispatch<FocusComposerPayload>({

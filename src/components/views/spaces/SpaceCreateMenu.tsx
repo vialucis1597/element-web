@@ -147,6 +147,29 @@ const createSubspaces = async (client: MatrixClient, parentRoomId: string, daoNa
             parentSpace,
             joinRule: JoinRule.Public,
         });
+
+        // Create Ledger room for blockchain-style transaction recording
+        await createRoom(client, {
+            createOpts: {
+                name: `ledger`,
+                preset: Preset.PublicChat,
+                visibility: Visibility.Private,
+                power_level_content_override: {
+                    events_default: 100, // Only high-level users can write transactions
+                    invite: 0,
+                    state_default: 100,
+                    users_default: 0,
+                },
+                topic: `Blockchain ledger for ${daoName} DAO - All transactions are recorded here`,
+            },
+            historyVisibility: HistoryVisibility.Invited,
+            spinner: false,
+            encryption: false,
+            andView: false,
+            inlineErrors: true,
+            parentSpace,
+            joinRule: JoinRule.Public,
+        });
     } catch (error) {
         logger.error("Failed to create subspaces:", error);
     }

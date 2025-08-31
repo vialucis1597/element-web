@@ -147,6 +147,11 @@ export class MnemonicWallet {
         return this.walletData;
     }
 
+    // 지갑 주소 가져오기
+    getWalletAddress(): string | null {
+        return this.walletData?.address || null;
+    }
+
     // 지갑 변경 이벤트 리스너 추가
     addListener(callback: (wallet: WalletData) => void): void {
         this.listeners.push(callback);

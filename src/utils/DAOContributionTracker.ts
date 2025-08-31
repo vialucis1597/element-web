@@ -69,8 +69,25 @@ export class DAOContributionTracker {
         return false;
     }
 
+    // Ledger 룸 찾기
+    private findLedgerRoom(daoSpaceId: string): Room | null {
+        const client = MatrixClientPeg.safeGet();
+        const daoSpace = client.getRoom(daoSpaceId);
+        if (!daoSpace) return null;
+
+        // DAO 스페이스의 하위 룸들 중에서 ledger 룸 찾기
+        const children = SpaceStore.instance.getChildren(daoSpaceId);
+        for (const child of children) {
+            const room = client.getRoom(child.roomId);
+            if (room && !room.isSpaceRoom() && room.name === "ledger") {
+                return room;
+            }
+        }
+        return null;
+    }
+
     // DAO 정보 가져오기 (단순화)
-    private getDAOInfo(dcaRoomId: string): { daoId: string; daoName: string; contributionValue: number } | null {
+    private getDAOInfo(dcaRoomId: string): { daoId: string; daoName: string; contributionValue: number; ledgerRoom: Room | null } | null {
         const client = MatrixClientPeg.safeGet();
         const dcaRoom = client.getRoom(dcaRoomId);
         
@@ -103,10 +120,15 @@ export class DAOContributionTracker {
                 const contributionValue = contributionMatch ? parseInt(contributionMatch[1]) : 10;
                 console.log("💰 Extracted contribution value from DCA room:", contributionValue);
 
+                // Ledger 룸 찾기
+                const ledgerRoom = this.findLedgerRoom(daoSpaceId);
+                console.log("📚 Ledger room found:", ledgerRoom?.name);
+
                 return {
                     daoId: daoSpaceId,
                     daoName: daoSpace.name || "Unknown DAO",
-                    contributionValue
+                    contributionValue,
+                    ledgerRoom
                 };
             }
         }
@@ -127,6 +149,69 @@ export class DAOContributionTracker {
         this.recentContributions.set(key, Date.now());
     }
 
+    // 원장 룸에 거래 기록
+    private async recordTransaction(
+        ledgerRoom: Room,
+        dcaRoomName: string,
+        daoName: string,
+        recipientWalletAddress: string,
+        amount: number,
+        verifierName: string
+    ): Promise<boolean> {
+        try {
+            const client = MatrixClientPeg.safeGet();
+            
+            const transactionData = {
+                type: `PoC: ${dcaRoomName}`,
+                from: `${daoName} minting`,
+                to: recipientWalletAddress,
+                amount: amount,
+                sig: verifierName,
+                timestamp: Date.now(),
+                txHash: this.generateTransactionHash(recipientWalletAddress, amount, Date.now())
+            };
+
+            console.log("📝 Recording transaction to ledger:", transactionData);
+
+            await client.sendEvent(ledgerRoom.roomId, EventType.RoomMessage, {
+                msgtype: MsgType.Text,
+                body: `🏦 TRANSACTION RECORD 🏦\n${JSON.stringify(transactionData, null, 2)}`,
+                format: "org.matrix.custom.html",
+                formatted_body: `
+                    <h3>🏦 TRANSACTION RECORD 🏦</h3>
+                    <table border="1" style="border-collapse: collapse; width: 100%;">
+                        <tr><td><b>Type</b></td><td>${transactionData.type}</td></tr>
+                        <tr><td><b>From</b></td><td>${transactionData.from}</td></tr>
+                        <tr><td><b>To</b></td><td>${transactionData.to}</td></tr>
+                        <tr><td><b>Amount</b></td><td>${transactionData.amount}</td></tr>
+                        <tr><td><b>Verifier</b></td><td>${transactionData.sig}</td></tr>
+                        <tr><td><b>Timestamp</b></td><td>${new Date(transactionData.timestamp).toISOString()}</td></tr>
+                        <tr><td><b>TX Hash</b></td><td><code>${transactionData.txHash}</code></td></tr>
+                    </table>
+                `,
+                transaction_data: transactionData // 원장 처리용 메타데이터
+            });
+
+            console.log("✅ Transaction recorded to ledger successfully");
+            return true;
+        } catch (error) {
+            console.error("💥 Failed to record transaction to ledger:", error);
+            return false;
+        }
+    }
+
+    // 거래 해시 생성 (간단한 구현)
+    private generateTransactionHash(to: string, amount: number, timestamp: number): string {
+        const data = `${to}-${amount}-${timestamp}`;
+        let hash = 0;
+        for (let i = 0; i < data.length; i++) {
+            const char = data.charCodeAt(i);
+            hash = ((hash << 5) - hash) + char;
+            hash = hash & hash; // 32bit integer
+        }
+        return Math.abs(hash).toString(16).padStart(8, '0');
+    }
+
     // 채팅 이벤트 처리 (비활성화 - Verification 버튼만 사용)
     handleChatEvent(event: MatrixEvent): void {
         // 채팅으로는 기여증명 발행하지 않음
@@ -135,7 +220,7 @@ export class DAOContributionTracker {
     }
 
     // Verification 이벤트 처리 (일반 react와 구분)
-    handleVerificationEvent(event: MatrixEvent): void {
+    async handleVerificationEvent(event: MatrixEvent): Promise<void> {
         try {
             console.log("👍 React event received:", event.getType(), event.getContent());
             
@@ -194,26 +279,34 @@ export class DAOContributionTracker {
                 return;
             }
 
-            console.log("💎 Processing react contribution for DAO:", daoInfo.daoName);
+            console.log("💎 Processing verification contribution for DAO:", daoInfo.daoName);
             
-            // 원본 메시지 작성자 지갑에 기여가치 지급
-            this.awardContribution(originalAuthor, daoInfo, 'react');
+            // 검증자 정보
+            const verifierUserId = event.getSender();
+            const dcaRoomName = room?.name || "Unknown Room";
+            
+            // 원본 메시지 작성자 지갑에 기여가치 지급 (검증→원장→지갑 순서)
+            await this.awardContribution(originalAuthor, daoInfo, 'react', dcaRoomName, verifierUserId);
         } catch (error) {
             console.error("💥 Error handling react event:", error);
         }
     }
 
     // 기여가치 지급
-    private awardContribution(
+    private async awardContribution(
         userId: string, 
-        daoInfo: { daoId: string; daoName: string; contributionValue: number }, 
-        eventType: 'chat' | 'react'
-    ): void {
+        daoInfo: { daoId: string; daoName: string; contributionValue: number; ledgerRoom: Room | null }, 
+        eventType: 'chat' | 'react',
+        dcaRoomName: string,
+        verifierUserId: string
+    ): Promise<void> {
         console.log("💰 Awarding contribution:", {
             userId,
             daoName: daoInfo.daoName,
             contributionValue: daoInfo.contributionValue,
-            eventType
+            eventType,
+            dcaRoomName,
+            verifierUserId
         });
 
         // 지갑 초기화 확인
@@ -223,33 +316,66 @@ export class DAOContributionTracker {
         }
 
         try {
-            // 지갑에 DAO 등록/업데이트
-            this.wallet.addOrUpdateDAOCurrency(
-                daoInfo.daoId,
-                daoInfo.daoName,
-                `${daoInfo.daoName} Token`, // 화폐명
-                daoInfo.contributionValue
-            );
+            // 1단계: 사용자 지갑 주소 가져오기
+            const recipientWalletAddress = this.wallet.getWalletAddress();
+            if (!recipientWalletAddress) {
+                console.error("❌ Failed to get recipient wallet address");
+                return;
+            }
 
-            // 기여가치 지급 (설정된 값 그대로)
-            const awarded = this.wallet.awardContribution(daoInfo.daoId, 1);
+            // 2단계: 검증자 이름 가져오기
+            const client = MatrixClientPeg.safeGet();
+            const verifierUser = client.getUser(verifierUserId);
+            const verifierName = verifierUser?.displayName || verifierUserId;
 
-            if (awarded) {
-                this.setCooldown(userId, daoInfo.daoId);
+            let transactionRecorded = true;
 
-                // 알림 표시
-                this.showContributionNotification(
+            // 3단계: 원장 룸에 거래 기록 (있는 경우)
+            if (daoInfo.ledgerRoom) {
+                transactionRecorded = await this.recordTransaction(
+                    daoInfo.ledgerRoom,
+                    dcaRoomName,
                     daoInfo.daoName,
+                    recipientWalletAddress,
                     daoInfo.contributionValue,
-                    eventType
+                    verifierName
+                );
+            } else {
+                console.log("⚠️ No ledger room found, proceeding without ledger record");
+            }
+
+            // 4단계: 원장 기록이 성공했거나 원장이 없는 경우에만 지갑 업데이트
+            if (transactionRecorded) {
+                // 지갑에 DAO 등록/업데이트
+                this.wallet.addOrUpdateDAOCurrency(
+                    daoInfo.daoId,
+                    daoInfo.daoName,
+                    `${daoInfo.daoName} Token`, // 화폐명
+                    daoInfo.contributionValue
                 );
 
-                console.log("✅ Contribution awarded:", daoInfo.contributionValue, "to", daoInfo.daoName, "for", eventType);
+                // 기여가치 지급 (설정된 값 그대로)
+                const awarded = this.wallet.awardContribution(daoInfo.daoId, 1);
+
+                if (awarded) {
+                    this.setCooldown(userId, daoInfo.daoId);
+
+                    // 알림 표시
+                    this.showContributionNotification(
+                        daoInfo.daoName,
+                        daoInfo.contributionValue,
+                        eventType
+                    );
+
+                    console.log("✅ Complete flow: Verification → Ledger → Wallet update successful");
+                } else {
+                    console.log("❌ Failed to update wallet after ledger record");
+                }
             } else {
-                console.log("❌ Failed to award contribution");
+                console.log("❌ Ledger recording failed, skipping wallet update");
             }
         } catch (error) {
-            console.error("💥 Error awarding contribution:", error);
+            console.error("💥 Error in contribution award flow:", error);
         }
     }
 
@@ -321,7 +447,9 @@ export class DAOContributionTracker {
                 
                 // Verification 이벤트만 처리
                 console.log("✅ DCA Verification detected");
-                this.handleVerificationEvent(event);
+                this.handleVerificationEvent(event).catch(error => {
+                    console.error("💥 Error in verification event handling:", error);
+                });
             } catch (error) {
                 console.error("💥 Error processing DCA timeline event:", error);
             }

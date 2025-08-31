@@ -272,12 +272,22 @@ const ReactButton: React.FC<IReactButtonProps> = ({ mxEvent, reactions, onFocusC
     const room = mxEvent.getRoomId() ? MatrixClientPeg.safeGet().getRoom(mxEvent.getRoomId()!) : null;
     const currentUserId = MatrixClientPeg.safeGet().getSafeUserId();
     const isDCA = room ? (isDCARoom(room) || isInDCASpace(room)) : false;
-    const canReact = !isDCA || hasVerificationAuthority(room!, currentUserId);
+    
+    // Check if message is already verified (has ✅ reaction)
+    const isAlreadyVerified = isDCA && reactions?.getAnnotationsBySender() ? 
+        Object.values(reactions.getAnnotationsBySender()).some(userReactions => 
+            Array.from(userReactions).some(reaction => 
+                !reaction.isRedacted() && reaction.getRelation()?.key === "✅"
+            )
+        ) : false;
+    
+    const canReact = !isDCA || (hasVerificationAuthority(room!, currentUserId) && !isAlreadyVerified);
     
     // Debug logging
     if (room && isDCA) {
         console.log("DCA Room detected:", room.name);
-        console.log("User level:", currentUserId);
+        console.log("User ID:", currentUserId);
+        console.log("Already verified:", isAlreadyVerified);
         console.log("Can react:", canReact);
     }
 
@@ -343,7 +353,9 @@ const ReactButton: React.FC<IReactButtonProps> = ({ mxEvent, reactions, onFocusC
                 className={`mx_MessageActionBar_iconButton ${!canReact ? 'mx_MessageActionBar_iconButton_disabled' : ''}`}
                 title={
                     !canReact 
-                        ? "Verification authority required" 
+                        ? isAlreadyVerified
+                            ? "Already verified"
+                            : "Verification authority required"
                         : isDCA 
                             ? "Verification" 
                             : _t("action|react")

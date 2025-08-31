@@ -18,6 +18,7 @@ import ReactionsRowButtonTooltip from "./ReactionsRowButtonTooltip";
 import AccessibleButton from "../elements/AccessibleButton";
 import MatrixClientContext from "../../../contexts/MatrixClientContext";
 import { REACTION_SHORTCODE_KEY } from "./ReactionsRow";
+import SpaceStore from "../../../stores/spaces/SpaceStore";
 
 export interface IProps {
     // The event we're displaying reactions for
@@ -40,8 +41,43 @@ export default class ReactionsRowButton extends React.PureComponent<IProps> {
     public static contextType = MatrixClientContext;
     declare public context: React.ContextType<typeof MatrixClientContext>;
 
+    // DCA 룸인지 확인
+    private isDCARoom(roomId: string): boolean {
+        const room = this.context.getRoom(roomId);
+        if (!room) return false;
+        
+        const spaceEvents = room.currentState.getStateEvents(EventType.SpaceParent);
+        
+        for (const event of spaceEvents) {
+            const parentRoomId = event.getStateKey();
+            if (!parentRoomId) continue;
+
+            const parentRoom = this.context.getRoom(parentRoomId);
+            if (!parentRoom) continue;
+            
+            // 부모가 DCA 스페이스인지 확인
+            if (parentRoom.isSpaceRoom() && parentRoom.name === "DCA") {
+                return true;
+            }
+            
+            // 재귀적으로 부모 체크
+            if (this.isDCARoom(parentRoomId)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     public onClick = (): void => {
         const { mxEvent, myReactionEvent, content } = this.props;
+        
+        // DCA 룸에서 ✅ 반응 취소 차단
+        if (content === "✅" && this.isDCARoom(mxEvent.getRoomId()!)) {
+            console.log("🚫 Verification reaction removal blocked in DCA room");
+            return;
+        }
+        
         if (myReactionEvent) {
             this.context.redactEvent(mxEvent.getRoomId()!, myReactionEvent.getId()!);
         } else {
@@ -58,6 +94,10 @@ export default class ReactionsRowButton extends React.PureComponent<IProps> {
 
     public render(): React.ReactNode {
         const { mxEvent, content, count, reactionEvents, myReactionEvent } = this.props;
+
+        // DCA 룸의 ✅ 반응은 클릭 비활성화
+        const isVerificationInDCA = content === "✅" && this.isDCARoom(mxEvent.getRoomId()!);
+        const isDisabled = this.props.disabled || isVerificationInDCA;
 
         const classes = classNames({
             mx_ReactionsRowButton: true,
@@ -120,7 +160,8 @@ export default class ReactionsRowButton extends React.PureComponent<IProps> {
                     className={classes}
                     aria-label={label}
                     onClick={this.onClick}
-                    disabled={this.props.disabled}
+                    disabled={isDisabled}
+                    title={isVerificationInDCA ? "Verification cannot be removed" : undefined}
                 >
                     {reactionContent}
                     <span className="mx_ReactionsRowButton_count" aria-hidden="true">
