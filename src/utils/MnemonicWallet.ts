@@ -152,6 +152,51 @@ export class MnemonicWallet {
         return this.walletData?.address || null;
     }
 
+    // 개인키 가져오기 (내부 사용)
+    private getPrivateKey(): Buffer | null {
+        if (!this.walletData?.privateKey) return null;
+        return Buffer.from(this.walletData.privateKey, 'hex');
+    }
+
+    // 데이터에 디지털 서명 생성 (간단한 해시 기반 서명)
+    signData(data: string): string | null {
+        const privateKey = this.getPrivateKey();
+        if (!privateKey || !this.walletData?.address) {
+            console.error("Private key or address not available for signing");
+            return null;
+        }
+
+        try {
+            // 데이터와 개인키를 조합하여 해시 생성
+            const combinedData = data + privateKey.toString('hex') + this.walletData.address;
+            const signature = keccak256(combinedData);
+            
+            console.log("🔐 Generated signature for data:", data.substring(0, 50) + "...");
+            return signature;
+        } catch (error) {
+            console.error("Failed to sign data:", error);
+            return null;
+        }
+    }
+
+    // 서명 검증 (간단한 해시 기반 검증)
+    verifySignature(data: string, signature: string, signerAddress: string, signerPrivateKey?: string): boolean {
+        try {
+            if (!signerPrivateKey) {
+                console.warn("Cannot verify signature without private key");
+                return false;
+            }
+            
+            const combinedData = data + signerPrivateKey + signerAddress;
+            const expectedSignature = keccak256(combinedData);
+            
+            return signature === expectedSignature;
+        } catch (error) {
+            console.error("Failed to verify signature:", error);
+            return false;
+        }
+    }
+
     // 지갑 변경 이벤트 리스너 추가
     addListener(callback: (wallet: WalletData) => void): void {
         this.listeners.push(callback);

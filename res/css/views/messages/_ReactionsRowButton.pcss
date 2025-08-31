@@ -31,4 +31,13 @@ Please see LICENSE files in the repository root for full details.
         text-overflow: ellipsis;
         padding-right: 4px;
     }
+
+    /* DCA 룸 검증 마크용 스타일 - 카운트 없을 때 균형 맞춤 */
+    &.mx_ReactionsRowButton_noCount {
+        padding: 1px 8px; /* 좌우 패딩 증가로 균형 맞춤 */
+        
+        .mx_ReactionsRowButton_content {
+            padding-right: 0; /* 오른쪽 패딩 제거 */
+        }
+    }
 }

@@ -156,19 +156,44 @@ export class DAOContributionTracker {
         daoName: string,
         recipientWalletAddress: string,
         amount: number,
-        verifierName: string
+        verifierName: string,
+        verifierUserId: string
     ): Promise<boolean> {
         try {
             const client = MatrixClientPeg.safeGet();
             
-            const transactionData = {
+            // 기본 트랜잭션 데이터 생성
+            const basicTxData = {
                 type: `PoC: ${dcaRoomName}`,
                 from: `${daoName} minting`,
                 to: recipientWalletAddress,
                 amount: amount,
-                sig: verifierName,
+                verifier: verifierName,
+                verifierUserId: verifierUserId,
                 timestamp: Date.now(),
-                txHash: this.generateTransactionHash(recipientWalletAddress, amount, Date.now())
+            };
+
+            // 트랜잭션 해시 생성
+            const txHash = this.generateTransactionHash(recipientWalletAddress, amount, basicTxData.timestamp);
+            
+            // 서명할 데이터 문자열 생성
+            const dataToSign = `${basicTxData.type}|${basicTxData.from}|${basicTxData.to}|${basicTxData.amount}|${basicTxData.timestamp}|${txHash}`;
+            
+            // 검증자의 지갑으로 디지털 서명 생성
+            let digitalSignature = null;
+            const verifierWallet = this.wallet; // 검증자 본인의 지갑
+            if (verifierWallet && verifierWallet.getWalletData()) {
+                digitalSignature = verifierWallet.signData(dataToSign);
+                console.log("🔐 Digital signature generated:", digitalSignature?.substring(0, 16) + "...");
+            } else {
+                console.warn("⚠️ No wallet available for digital signature");
+            }
+
+            const transactionData = {
+                ...basicTxData,
+                txHash,
+                signature: digitalSignature,
+                dataToSign // 검증용으로 포함
             };
 
             console.log("📝 Recording transaction to ledger:", transactionData);
@@ -178,15 +203,18 @@ export class DAOContributionTracker {
                 body: `🏦 TRANSACTION RECORD 🏦\n${JSON.stringify(transactionData, null, 2)}`,
                 format: "org.matrix.custom.html",
                 formatted_body: `
-                    <h3>🏦 TRANSACTION RECORD 🏦</h3>
+                    <h3>🏦 BLOCKCHAIN TRANSACTION RECORD 🏦</h3>
                     <table border="1" style="border-collapse: collapse; width: 100%;">
                         <tr><td><b>Type</b></td><td>${transactionData.type}</td></tr>
                         <tr><td><b>From</b></td><td>${transactionData.from}</td></tr>
                         <tr><td><b>To</b></td><td>${transactionData.to}</td></tr>
                         <tr><td><b>Amount</b></td><td>${transactionData.amount}</td></tr>
-                        <tr><td><b>Verifier</b></td><td>${transactionData.sig}</td></tr>
+                        <tr><td><b>Verifier</b></td><td>${transactionData.verifier}</td></tr>
+                        <tr><td><b>Verifier ID</b></td><td><code>${transactionData.verifierUserId}</code></td></tr>
                         <tr><td><b>Timestamp</b></td><td>${new Date(transactionData.timestamp).toISOString()}</td></tr>
                         <tr><td><b>TX Hash</b></td><td><code>${transactionData.txHash}</code></td></tr>
+                        <tr><td><b>Digital Signature</b></td><td><code>${transactionData.signature ? transactionData.signature.substring(0, 32) + "..." : "N/A"}</code></td></tr>
+                        <tr><td><b>Signature Status</b></td><td>${transactionData.signature ? "✅ Signed" : "❌ Unsigned"}</td></tr>
                     </table>
                 `,
                 transaction_data: transactionData // 원장 처리용 메타데이터
@@ -338,7 +366,8 @@ export class DAOContributionTracker {
                     daoInfo.daoName,
                     recipientWalletAddress,
                     daoInfo.contributionValue,
-                    verifierName
+                    verifierName,
+                    verifierUserId
                 );
             } else {
                 console.log("⚠️ No ledger room found, proceeding without ledger record");
