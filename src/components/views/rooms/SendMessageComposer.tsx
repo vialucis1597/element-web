@@ -25,6 +25,10 @@ import { type RoomMessageEventContent } from "matrix-js-sdk/src/types";
 
 import dis from "../../../dispatcher/dispatcher";
 import EditorModel from "../../../editor/model";
+import { MnemonicWallet } from "../../../utils/MnemonicWallet";
+import SpaceStore from "../../../stores/spaces/SpaceStore";
+import Modal from "../../../Modal";
+import InfoDialog from "../dialogs/InfoDialog";
 import {
     containsEmote,
     htmlSerializeIfNeeded,
@@ -420,11 +424,51 @@ export class SendMessageComposer extends React.Component<ISendMessageComposerPro
         }
     }
 
+    // DCA 룸인지 확인
+    private isDCARoom(room: Room): boolean {
+        if (!room) return false;
+        
+        const spaceEvents = room.currentState.getStateEvents(EventType.SpaceParent);
+        
+        for (const event of spaceEvents) {
+            const parentRoomId = event.getStateKey();
+            if (!parentRoomId) continue;
+
+            const parentRoom = MatrixClientPeg.safeGet().getRoom(parentRoomId);
+            if (!parentRoom) continue;
+            
+            // 부모가 DCA 스페이스인지 확인
+            if (parentRoom.isSpaceRoom() && parentRoom.name === "DCA") {
+                return true;
+            }
+            
+            // 재귀적으로 부모 체크
+            if (this.isDCARoom(parentRoom)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     public async sendMessage(): Promise<void> {
         const model = this.model;
 
         if (model.isEmpty) {
             return;
+        }
+
+        // DCA 룸에서 지갑 연결 확인
+        if (this.isDCARoom(this.props.room)) {
+            const wallet = MnemonicWallet.getInstance();
+            if (!wallet || !wallet.getWalletData()) {
+                Modal.createDialog(InfoDialog, {
+                    title: "지갑 연결 필요",
+                    description: "DCA 룸에서 채팅하려면 먼저 지갑을 연결해야 합니다.\n\n좌측 하단의 지갑 아이콘을 클릭하여 지갑을 생성하거나 연결해주세요.",
+                    button: "확인",
+                });
+                return;
+            }
         }
 
         const posthogEvent: ComposerEvent = {
