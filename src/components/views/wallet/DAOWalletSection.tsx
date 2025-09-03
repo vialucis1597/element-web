@@ -49,23 +49,48 @@ const DAOWalletSection: React.FC<Props> = ({ space }) => {
             const newWallet = await wallet.createDAOWallet(daoId, daoName);
             setWalletData(newWallet);
             
+            const backupData = `DAO: ${daoId}\nName: ${daoName}\nMnemonic: ${newWallet.mnemonic}\nAddress: ${newWallet.address}\n\n`;
+            
             const modal = Modal.createDialog(InfoDialog, {
                 title: "DAO 지갑 생성 완료",
                 description: (
                     <div>
                         <p><strong>{daoName} DAO 전용 지갑이 생성되었습니다!</strong></p>
-                        <p>니모닉 문구를 안전하게 보관하세요:</p>
+                        <p>다음 정보를 안전하게 보관하세요:</p>
                         <div style={{ 
                             backgroundColor: "#f5f5f5", 
-                            padding: "10px", 
+                            padding: "15px", 
                             borderRadius: "4px", 
                             fontFamily: "monospace",
                             wordBreak: "break-all",
-                            margin: "10px 0"
+                            margin: "10px 0",
+                            fontSize: "12px",
+                            lineHeight: "1.4"
                         }}>
-                            {newWallet.mnemonic}
+                            <div><strong>DAO 주소:</strong> {daoId}</div>
+                            <div><strong>DAO 이름:</strong> {daoName}</div>
+                            <div><strong>니모닉:</strong> {newWallet.mnemonic}</div>
+                            <div><strong>지갑 주소:</strong> {newWallet.address}</div>
                         </div>
-                        <p><em>이 문구를 분실하면 지갑을 복원할 수 없습니다.</em></p>
+                        <div style={{ marginTop: "15px" }}>
+                            <AccessibleButton
+                                kind="primary"
+                                onClick={() => {
+                                    navigator.clipboard.writeText(backupData);
+                                    // 간단한 피드백
+                                    const btn = document.activeElement as HTMLElement;
+                                    const originalText = btn.textContent;
+                                    btn.textContent = "복사됨!";
+                                    setTimeout(() => {
+                                        btn.textContent = originalText;
+                                    }, 1000);
+                                }}
+                                style={{ fontSize: "14px", padding: "8px 16px" }}
+                            >
+                                전체 정보 복사
+                            </AccessibleButton>
+                        </div>
+                        <p><em>이 정보를 분실하면 지갑을 복원할 수 없습니다.</em></p>
                     </div>
                 ),
                 button: "확인"
@@ -127,18 +152,23 @@ const DAOWalletSection: React.FC<Props> = ({ space }) => {
 
     const handleExportWallet = useCallback(() => {
         try {
-            const exportData = wallet.exportDAOWallet(daoId);
-            const blob = new Blob([exportData], { type: "application/json" });
+            if (!walletData) {
+                throw new Error("지갑 정보를 찾을 수 없습니다");
+            }
+
+            const exportData = `DAO: ${daoId}\nName: ${daoName}\nMnemonic: ${walletData.mnemonic}\nAddress: ${walletData.address}\n\n`;
+            
+            const blob = new Blob([exportData], { type: "text/plain; charset=utf-8" });
             const url = URL.createObjectURL(blob);
             const a = document.createElement("a");
             a.href = url;
-            a.download = `${daoName}-wallet-${new Date().toISOString().split('T')[0]}.json`;
+            a.download = `${daoName}-wallet-${new Date().toISOString().split('T')[0]}.txt`;
             a.click();
             URL.revokeObjectURL(url);
         } catch (err) {
             setError(err instanceof Error ? err.message : "지갑 내보내기 실패");
         }
-    }, [wallet, daoId, daoName]);
+    }, [walletData, daoId, daoName]);
 
     const formatCurrency = (amount: number): string => {
         return new Intl.NumberFormat().format(amount);

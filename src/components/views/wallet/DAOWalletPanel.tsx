@@ -19,6 +19,7 @@ const DAOWalletPanel: React.FC<Props> = ({ onClose }) => {
     const [showMnemonicInput, setShowMnemonicInput] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const [isImporting, setIsImporting] = useState(false);
 
     const wallet = DAOMnemonicWallet.getInstance();
 
@@ -86,12 +87,18 @@ const DAOWalletPanel: React.FC<Props> = ({ onClose }) => {
 
     const handleExportWallet = useCallback((daoId: string, daoName: string) => {
         try {
-            const exportData = wallet.exportDAOWallet(daoId);
-            const blob = new Blob([exportData], { type: "application/json" });
+            const daoWallet = wallet.getDAOWallet(daoId);
+            if (!daoWallet) {
+                throw new Error("지갑 정보를 찾을 수 없습니다");
+            }
+
+            const exportData = `DAO: ${daoId}\nName: ${daoName}\nMnemonic: ${daoWallet.mnemonic}\nAddress: ${daoWallet.address}\n\n`;
+            
+            const blob = new Blob([exportData], { type: "text/plain; charset=utf-8" });
             const url = URL.createObjectURL(blob);
             const a = document.createElement("a");
             a.href = url;
-            a.download = `${daoName}-wallet-${new Date().toISOString().split('T')[0]}.json`;
+            a.download = `${daoName}-wallet-${new Date().toISOString().split('T')[0]}.txt`;
             a.click();
             URL.revokeObjectURL(url);
         } catch (err) {
@@ -101,6 +108,106 @@ const DAOWalletPanel: React.FC<Props> = ({ onClose }) => {
 
     const formatCurrency = (amount: number): string => {
         return new Intl.NumberFormat().format(amount);
+    };
+
+    const handleImportWallets = useCallback(async () => {
+        setIsImporting(true);
+        setError(null);
+
+        try {
+            // 파일 선택 다이얼로그 열기
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.accept = '.txt,.json';
+            input.multiple = false;
+
+            input.onchange = async (event) => {
+                const file = (event.target as HTMLInputElement).files?.[0];
+                if (!file) return;
+
+                try {
+                    const text = await file.text();
+                    const importedWallets = parseWalletBackupFile(text);
+                    
+                    if (importedWallets.length === 0) {
+                        throw new Error("유효한 지갑 정보를 찾을 수 없습니다");
+                    }
+
+                    // 각 지갑을 순차적으로 복원
+                    let successCount = 0;
+                    const errors: string[] = [];
+
+                    for (const walletInfo of importedWallets) {
+                        try {
+                            await wallet.createDAOWalletFromMnemonic(
+                                walletInfo.daoId,
+                                walletInfo.daoName,
+                                "B",
+                                1,
+                                walletInfo.mnemonic
+                            );
+                            successCount++;
+                        } catch (err) {
+                            errors.push(`${walletInfo.daoName}: ${err instanceof Error ? err.message : "복원 실패"}`);
+                        }
+                    }
+
+                    // 결과 알림
+                    const resultMessage = `
+                        ${successCount}개의 DAO 지갑이 성공적으로 복원되었습니다.
+                        ${errors.length > 0 ? `\n\n실패한 지갑:\n${errors.join('\n')}` : ''}
+                    `;
+
+                    Modal.createDialog(InfoDialog, {
+                        title: "지갑 가져오기 완료",
+                        description: resultMessage,
+                        button: "확인"
+                    });
+
+                    DAOContributionTracker.getInstance().initialize();
+                } catch (err) {
+                    setError(err instanceof Error ? err.message : "파일 처리 실패");
+                } finally {
+                    setIsImporting(false);
+                }
+            };
+
+            input.click();
+        } catch (err) {
+            setError(err instanceof Error ? err.message : "파일 선택 실패");
+            setIsImporting(false);
+        }
+    }, [wallet]);
+
+    // 백업 파일 파싱 함수
+    const parseWalletBackupFile = (text: string): Array<{daoId: string, daoName: string, mnemonic: string}> => {
+        const wallets: Array<{daoId: string, daoName: string, mnemonic: string}> = [];
+        const lines = text.split('\n');
+        
+        let currentWallet: Partial<{daoId: string, daoName: string, mnemonic: string}> = {};
+        
+        for (const line of lines) {
+            const trimmedLine = line.trim();
+            
+            if (trimmedLine.startsWith('DAO:')) {
+                // 이전 지갑 정보가 완성되었으면 추가
+                if (currentWallet.daoId && currentWallet.daoName && currentWallet.mnemonic) {
+                    wallets.push(currentWallet as {daoId: string, daoName: string, mnemonic: string});
+                }
+                currentWallet = { daoId: trimmedLine.substring(4).trim() };
+            } else if (trimmedLine.startsWith('Name:')) {
+                currentWallet.daoName = trimmedLine.substring(5).trim();
+            } else if (trimmedLine.startsWith('Mnemonic:')) {
+                currentWallet.mnemonic = trimmedLine.substring(9).trim();
+            }
+        }
+        
+        // 마지막 지갑 정보 추가
+        if (currentWallet.daoId && currentWallet.daoName && currentWallet.mnemonic) {
+            wallets.push(currentWallet as {daoId: string, daoName: string, mnemonic: string});
+        }
+        
+        return wallets;
     };
 
     const renderWalletList = () => {
@@ -249,7 +356,17 @@ const DAOWalletPanel: React.FC<Props> = ({ onClose }) => {
 
             <div className="mx_DAOWalletPanel_content">
                 <div className="mx_DAOWalletPanel_summary">
-                    <h3>전체 현황</h3>
+                    <div className="mx_DAOWalletPanel_summaryHeader">
+                        <h3>전체 현황</h3>
+                        <AccessibleButton
+                            kind="primary"
+                            onClick={handleImportWallets}
+                            disabled={isImporting}
+                            className="mx_DAOWalletPanel_importButton"
+                        >
+                            {isImporting ? <Spinner w={16} h={16} /> : "지갑 가져오기"}
+                        </AccessibleButton>
+                    </div>
                     <div className="mx_DAOWalletPanel_totalInfo">
                         <div className="mx_DAOWalletPanel_stat">
                             <span className="mx_DAOWalletPanel_statLabel">DAO 지갑 수:</span>
