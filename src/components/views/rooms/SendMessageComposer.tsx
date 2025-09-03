@@ -25,7 +25,7 @@ import { type RoomMessageEventContent } from "matrix-js-sdk/src/types";
 
 import dis from "../../../dispatcher/dispatcher";
 import EditorModel from "../../../editor/model";
-import { MnemonicWallet } from "../../../utils/MnemonicWallet";
+import { DAOMnemonicWallet } from "../../../utils/DAOMnemonicWallet";
 import SpaceStore from "../../../stores/spaces/SpaceStore";
 import Modal from "../../../Modal";
 import InfoDialog from "../dialogs/InfoDialog";
@@ -424,31 +424,37 @@ export class SendMessageComposer extends React.Component<ISendMessageComposerPro
         }
     }
 
-    // DCA 룸인지 확인
-    private isDCARoom(room: Room): boolean {
-        if (!room) return false;
+    // DCA 룸인지 확인하고 DAO 정보 반환
+    private getDAOInfoIfDCARoom(room: Room): { daoId: string; daoName: string } | null {
+        if (!room) return null;
         
         const spaceEvents = room.currentState.getStateEvents(EventType.SpaceParent);
         
         for (const event of spaceEvents) {
-            const parentRoomId = event.getStateKey();
-            if (!parentRoomId) continue;
+            const dcaSpaceId = event.getStateKey();
+            if (!dcaSpaceId) continue;
 
-            const parentRoom = MatrixClientPeg.safeGet().getRoom(parentRoomId);
-            if (!parentRoom) continue;
+            const dcaSpace = MatrixClientPeg.safeGet().getRoom(dcaSpaceId);
+            if (!dcaSpace?.isSpaceRoom() || dcaSpace.name !== "DCA") continue;
             
-            // 부모가 DCA 스페이스인지 확인
-            if (parentRoom.isSpaceRoom() && parentRoom.name === "DCA") {
-                return true;
-            }
+            // DCA 스페이스의 부모 DAO 스페이스 찾기
+            const daoSpaceEvents = dcaSpace.currentState.getStateEvents(EventType.SpaceParent);
             
-            // 재귀적으로 부모 체크
-            if (this.isDCARoom(parentRoom)) {
-                return true;
+            for (const daoEvent of daoSpaceEvents) {
+                const daoSpaceId = daoEvent.getStateKey();
+                if (!daoSpaceId) continue;
+
+                const daoSpace = MatrixClientPeg.safeGet().getRoom(daoSpaceId);
+                if (!daoSpace?.isSpaceRoom()) continue;
+
+                return {
+                    daoId: daoSpaceId,
+                    daoName: daoSpace.name || "Unknown DAO"
+                };
             }
         }
 
-        return false;
+        return null;
     }
 
     public async sendMessage(): Promise<void> {
@@ -458,13 +464,14 @@ export class SendMessageComposer extends React.Component<ISendMessageComposerPro
             return;
         }
 
-        // DCA 룸에서 지갑 연결 확인
-        if (this.isDCARoom(this.props.room)) {
-            const wallet = MnemonicWallet.getInstance();
-            if (!wallet || !wallet.getWalletData()) {
+        // DCA 룸에서 해당 DAO 지갑 연결 확인
+        const daoInfo = this.getDAOInfoIfDCARoom(this.props.room);
+        if (daoInfo) {
+            const wallet = DAOMnemonicWallet.getInstance();
+            if (!wallet.hasDAOWallet(daoInfo.daoId)) {
                 Modal.createDialog(InfoDialog, {
                     title: "지갑 연결 필요",
-                    description: "DCA 룸에서 채팅하려면 먼저 지갑을 연결해야 합니다.\n\n좌측 하단의 지갑 아이콘을 클릭하여 지갑을 생성하거나 연결해주세요.",
+                    description: `DCA 룸에서 채팅하려면 먼저 ${daoInfo.daoName} DAO 지갑을 생성해야 합니다.\n\nDAO 스페이스로 이동하여 지갑을 생성하거나 연결해주세요.`,
                     button: "확인",
                 });
                 return;

@@ -67,6 +67,7 @@ import MainSplit from "./MainSplit";
 import RightPanel from "./RightPanel";
 import SpaceHierarchy, { showRoom } from "./SpaceHierarchy";
 import { type RoomPermalinkCreator } from "../../utils/permalinks/Permalinks";
+import DAOWalletSection from "../views/wallet/DAOWalletSection";
 
 interface IProps {
     space: Room;
@@ -303,6 +304,8 @@ const SpaceLanding: React.FC<{ space: Room }> = ({ space }) => {
                 </div>
             </div>
             <RoomTopic room={space} className="mx_SpaceRoomView_landing_topic" />
+
+            {isDaoSpace && <DAOWalletSection space={space} />}
 
             {isDaoSpace && (
                 <div className="mx_SpaceRoomView_landing_daoButtons">

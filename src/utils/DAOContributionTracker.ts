@@ -1,6 +1,6 @@
 import { MatrixEvent, EventType, MsgType, RelationType, Room } from "matrix-js-sdk/src/matrix";
 import { MatrixClientPeg } from "../MatrixClientPeg";
-import { MnemonicWallet } from "./MnemonicWallet";
+import { DAOMnemonicWallet } from "./DAOMnemonicWallet";
 import SpaceStore from "../stores/spaces/SpaceStore";
 
 export interface ContributionEvent {
@@ -15,7 +15,7 @@ export interface ContributionEvent {
 
 export class DAOContributionTracker {
     private static instance: DAOContributionTracker;
-    private wallet = MnemonicWallet.getInstance();
+    private wallet = DAOMnemonicWallet.getInstance();
     private recentContributions: Map<string, number> = new Map(); // userId+daoId -> timestamp
     private readonly CONTRIBUTION_COOLDOWN = 0; // 쿨다운 없음
     private isInitialized = false;
@@ -158,7 +158,7 @@ export class DAOContributionTracker {
         amount: number,
         verifierName: string,
         verifierUserId: string
-    ): Promise<boolean> {
+    ): Promise<void> {
         try {
             const client = MatrixClientPeg.safeGet();
             
@@ -179,14 +179,29 @@ export class DAOContributionTracker {
             // 서명할 데이터 문자열 생성
             const dataToSign = `${basicTxData.type}|${basicTxData.from}|${basicTxData.to}|${basicTxData.amount}|${basicTxData.timestamp}|${txHash}`;
             
-            // 검증자의 지갑으로 디지털 서명 생성
+            // 검증자의 DAO 지갑으로 디지털 서명 생성  
             let digitalSignature = null;
-            const verifierWallet = this.wallet; // 검증자 본인의 지갑
-            if (verifierWallet && verifierWallet.getWalletData()) {
-                digitalSignature = verifierWallet.signData(dataToSign);
-                console.log("🔐 Digital signature generated:", digitalSignature?.substring(0, 16) + "...");
+            // 우선 원장 기록에서 DAO ID 추출 시도
+            const ledgerSpaceEvents = ledgerRoom.currentState.getStateEvents(EventType.SpaceParent);
+            let parentDaoId = null;
+            
+            for (const event of ledgerSpaceEvents) {
+                const parentId = event.getStateKey();
+                if (parentId) {
+                    const parentRoom = MatrixClientPeg.safeGet().getRoom(parentId);
+                    if (parentRoom?.isSpaceRoom() && parentRoom.name !== "DCA") {
+                        parentDaoId = parentId;
+                        break;
+                    }
+                }
+            }
+            
+            if (parentDaoId && this.wallet.hasDAOWallet(parentDaoId)) {
+                digitalSignature = this.wallet.signData(parentDaoId, dataToSign);
+                console.log("🔐 Digital signature generated with DAO wallet:", digitalSignature?.substring(0, 16) + "...");
             } else {
-                console.warn("⚠️ No wallet available for digital signature");
+                console.warn("⚠️ No DAO wallet available for digital signature, proceeding without signature");
+                digitalSignature = "unsigned_transaction";
             }
 
             const transactionData = {
@@ -221,10 +236,9 @@ export class DAOContributionTracker {
             });
 
             console.log("✅ Transaction recorded to ledger successfully");
-            return true;
         } catch (error) {
             console.error("💥 Failed to record transaction to ledger:", error);
-            return false;
+            throw error; // 에러를 다시 던져서 상위에서 처리하도록 함
         }
     }
 
@@ -291,9 +305,9 @@ export class DAOContributionTracker {
                 return;
             }
 
-            // 원본 메시지 작성자에게 토큰 지급
-            const originalAuthor = originalEvent.getSender();
-            console.log("💰 Rewarding original message author:", originalAuthor);
+            // 검증자 본인에게 토큰 지급 (검증 행위에 대한 보상)
+            const verifierUserId = event.getSender();
+            console.log("💰 Rewarding verifier:", verifierUserId);
 
             const daoInfo = this.getDAOInfo(roomId);
             if (!daoInfo) {
@@ -301,20 +315,18 @@ export class DAOContributionTracker {
                 return;
             }
 
-            // 쿨다운 확인 (원본 작성자 기준)
-            if (this.isOnCooldown(originalAuthor, daoInfo.daoId)) {
-                console.log("Contribution on cooldown for", originalAuthor);
+            // 쿨다운 확인 (검증자 기준)
+            if (this.isOnCooldown(verifierUserId, daoInfo.daoId)) {
+                console.log("Contribution on cooldown for verifier", verifierUserId);
                 return;
             }
 
             console.log("💎 Processing verification contribution for DAO:", daoInfo.daoName);
             
-            // 검증자 정보
-            const verifierUserId = event.getSender();
             const dcaRoomName = room?.name || "Unknown Room";
             
-            // 원본 메시지 작성자 지갑에 기여가치 지급 (검증→원장→지갑 순서)
-            await this.awardContribution(originalAuthor, daoInfo, 'react', dcaRoomName, verifierUserId);
+            // 검증자 지갑에 기여가치 지급 (검증→원장→지갑 순서)
+            await this.awardContribution(verifierUserId, daoInfo, 'react', dcaRoomName, verifierUserId);
         } catch (error) {
             console.error("💥 Error handling react event:", error);
         }
@@ -337,49 +349,52 @@ export class DAOContributionTracker {
             verifierUserId
         });
 
-        // 지갑 초기화 확인
-        if (!this.wallet || !this.wallet.getWalletData()) {
-            console.log("⚠️ Wallet not initialized, skipping contribution award");
-            return;
+        // DAO 지갑 존재 확인 및 생성
+        if (!this.wallet.hasDAOWallet(daoInfo.daoId)) {
+            console.log("⚠️ DAO wallet not found, creating new wallet for", daoInfo.daoName);
+            this.wallet.createDAOWallet(daoInfo.daoId, daoInfo.daoName, "B", daoInfo.contributionValue);
         }
 
         try {
-            // 1단계: 사용자 지갑 주소 가져오기
-            const recipientWalletAddress = this.wallet.getWalletAddress();
-            if (!recipientWalletAddress) {
-                console.error("❌ Failed to get recipient wallet address");
+            // 1단계: DAO 지갑 주소 가져오기
+            const daoWallet = this.wallet.getDAOWallet(daoInfo.daoId);
+            if (!daoWallet) {
+                console.error("❌ Failed to get DAO wallet");
                 return;
             }
+            const recipientWalletAddress = daoWallet.address;
 
             // 2단계: 검증자 이름 가져오기
             const client = MatrixClientPeg.safeGet();
             const verifierUser = client.getUser(verifierUserId);
             const verifierName = verifierUser?.displayName || verifierUserId;
 
-            let transactionRecorded = true;
-
-            // 3단계: 원장 룸에 거래 기록 (있는 경우)
+            // 3단계: 원장 룸에 거래 기록 (있는 경우) - 실패해도 계속 진행
             if (daoInfo.ledgerRoom) {
-                transactionRecorded = await this.recordTransaction(
-                    daoInfo.ledgerRoom,
-                    dcaRoomName,
-                    daoInfo.daoName,
-                    recipientWalletAddress,
-                    daoInfo.contributionValue,
-                    verifierName,
-                    verifierUserId
-                );
+                try {
+                    await this.recordTransaction(
+                        daoInfo.ledgerRoom,
+                        dcaRoomName,
+                        daoInfo.daoName,
+                        recipientWalletAddress,
+                        daoInfo.contributionValue,
+                        verifierName,
+                        verifierUserId
+                    );
+                    console.log("✅ Ledger transaction recorded successfully");
+                } catch (error) {
+                    console.error("⚠️ Ledger recording failed, but continuing with wallet update:", error);
+                }
             } else {
                 console.log("⚠️ No ledger room found, proceeding without ledger record");
             }
 
-            // 4단계: 원장 기록이 성공했거나 원장이 없는 경우에만 지갑 업데이트
-            if (transactionRecorded) {
-                // 지갑에 DAO 등록/업데이트
-                this.wallet.addOrUpdateDAOCurrency(
+            // 4단계: 원장 기록 결과와 관계없이 지갑 업데이트 진행
+            try {
+                // DAO 지갑 화폐 정보 업데이트
+                this.wallet.updateDAOCurrency(
                     daoInfo.daoId,
-                    daoInfo.daoName,
-                    `${daoInfo.daoName} Token`, // 화폐명
+                    "B",
                     daoInfo.contributionValue
                 );
 
@@ -396,12 +411,12 @@ export class DAOContributionTracker {
                         eventType
                     );
 
-                    console.log("✅ Complete flow: Verification → Ledger → Wallet update successful");
+                    console.log("✅ Complete flow: Verification → Wallet update successful");
                 } else {
-                    console.log("❌ Failed to update wallet after ledger record");
+                    console.log("❌ Failed to update wallet");
                 }
-            } else {
-                console.log("❌ Ledger recording failed, skipping wallet update");
+            } catch (walletError) {
+                console.error("💥 Error updating wallet:", walletError);
             }
         } catch (error) {
             console.error("💥 Error in contribution award flow:", error);
@@ -438,17 +453,24 @@ export class DAOContributionTracker {
         // 매우 제한적인 타임라인 이벤트 리스너 (DCA 룸 + 기여 관련 이벤트만)
         client.on("Room.timeline" as any, (event: MatrixEvent, room: Room | undefined) => {
             try {
-                // 디버깅: 모든 이벤트 로깅
                 const eventType = event.getType();
                 const content = event.getContent();
-                console.log("🔍 Timeline event:", {
+                
+                // Reaction 이벤트만 처리
+                if (eventType !== EventType.Reaction) {
+                    return;
+                }
+                
+                // 디버깅: Reaction 이벤트 로깅
+                console.log("🔍 Reaction event:", {
                     type: eventType,
                     content: content,
                     verification: content?.verification,
-                    relatesTo: content?.["m.relates_to"]
+                    relatesTo: content?.["m.relates_to"],
+                    sender: event.getSender()
                 });
                 
-                // 빠른 필터링: Verification 이벤트만 처리
+                // Verification 이벤트 확인
                 const isVerification = content?.["m.relates_to"]?.rel_type === RelationType.Annotation && content?.verification === true;
                 
                 if (!isVerification) {
@@ -467,25 +489,26 @@ export class DAOContributionTracker {
                 }
                 console.log("✅ DCA room confirmed!");
                 
-                console.log("📧 DCA Timeline event:", {
+                console.log("📧 DCA Verification Timeline event:", {
                     type: eventType,
                     sender: event.getSender(),
                     room: room?.name,
-                    roomId: roomId
+                    roomId: roomId,
+                    originalEventId: content?.["m.relates_to"]?.event_id
                 });
                 
-                // Verification 이벤트만 처리
-                console.log("✅ DCA Verification detected");
+                // Verification 이벤트 처리
+                console.log("✅ Processing DCA Verification");
                 this.handleVerificationEvent(event).catch(error => {
                     console.error("💥 Error in verification event handling:", error);
                 });
             } catch (error) {
-                console.error("💥 Error processing DCA timeline event:", error);
+                console.error("💥 Error processing timeline event:", error);
             }
         });
 
         this.isInitialized = true;
-        console.log("✅ DAO Contribution Tracker initialized successfully (lightweight mode)");
+        console.log("✅ DAO Contribution Tracker initialized successfully");
     }
 
     // 정리

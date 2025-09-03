@@ -1380,7 +1380,9 @@ export default class MatrixChat extends React.PureComponent<IProps, IState> {
         StorageManager.tryPersistStorage();
 
         // Initialize DAO Contribution Tracker (지연 초기화로 성능 개선)
-        // DAOContributionTracker.getInstance().initialize();
+        setTimeout(() => {
+            DAOContributionTracker.getInstance().initialize();
+        }, 2000); // 2초 후 초기화하여 성능 영향 최소화
 
         await this.onShowPostLoginScreen();
     }
