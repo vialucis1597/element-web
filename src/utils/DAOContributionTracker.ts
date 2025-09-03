@@ -162,12 +162,17 @@ export class DAOContributionTracker {
         try {
             const client = MatrixClientPeg.safeGet();
             
+            // 현재 잔액 조회 (이전 트랜잭션에서)
+            const currentBalance = await this.getLatestBalanceFromLedger(ledgerRoom, recipientWalletAddress);
+            const newBalance = currentBalance + amount;
+            
             // 기본 트랜잭션 데이터 생성
             const basicTxData = {
                 type: `PoC: ${dcaRoomName}`,
                 from: `${daoName} minting`,
                 to: recipientWalletAddress,
                 amount: amount,
+                balance: newBalance, // 새로운 잔액 추가
                 verifier: verifierName,
                 verifierUserId: verifierUserId,
                 timestamp: Date.now(),
@@ -223,7 +228,8 @@ export class DAOContributionTracker {
                         <tr><td><b>Type</b></td><td>${transactionData.type}</td></tr>
                         <tr><td><b>From</b></td><td>${transactionData.from}</td></tr>
                         <tr><td><b>To</b></td><td>${transactionData.to}</td></tr>
-                        <tr><td><b>Amount</b></td><td>${transactionData.amount}</td></tr>
+                        <tr><td><b>Amount</b></td><td>${transactionData.amount}B</td></tr>
+                        <tr><td><b>Balance</b></td><td>${transactionData.balance}B</td></tr>
                         <tr><td><b>Verifier</b></td><td>${transactionData.verifier}</td></tr>
                         <tr><td><b>Verifier ID</b></td><td><code>${transactionData.verifierUserId}</code></td></tr>
                         <tr><td><b>Timestamp</b></td><td>${new Date(transactionData.timestamp).toISOString()}</td></tr>
@@ -239,6 +245,34 @@ export class DAOContributionTracker {
         } catch (error) {
             console.error("💥 Failed to record transaction to ledger:", error);
             throw error; // 에러를 다시 던져서 상위에서 처리하도록 함
+        }
+    }
+
+    // 원장에서 특정 지갑 주소의 최신 잔액 조회
+    private async getLatestBalanceFromLedger(ledgerRoom: Room, walletAddress: string): Promise<number> {
+        try {
+            const timeline = ledgerRoom.getLiveTimeline();
+            const events = timeline.getEvents().reverse(); // 최신부터 검색
+            
+            for (const event of events) {
+                if (event.getType() === EventType.RoomMessage) {
+                    const content = event.getContent();
+                    const transactionData = content.transaction_data;
+                    
+                    if (transactionData && 
+                        transactionData.to === walletAddress && 
+                        typeof transactionData.balance === 'number') {
+                        console.log(`💰 Found latest balance for ${walletAddress}: ${transactionData.balance}`);
+                        return transactionData.balance;
+                    }
+                }
+            }
+            
+            console.log(`💰 No previous balance found for ${walletAddress}, starting from 0`);
+            return 0;
+        } catch (error) {
+            console.error("Error reading balance from ledger:", error);
+            return 0;
         }
     }
 
@@ -352,7 +386,7 @@ export class DAOContributionTracker {
         // DAO 지갑 존재 확인 및 생성
         if (!this.wallet.hasDAOWallet(daoInfo.daoId)) {
             console.log("⚠️ DAO wallet not found, creating new wallet for", daoInfo.daoName);
-            this.wallet.createDAOWallet(daoInfo.daoId, daoInfo.daoName, "B", daoInfo.contributionValue);
+            await this.wallet.createDAOWallet(daoInfo.daoId, daoInfo.daoName, "B", daoInfo.contributionValue);
         }
 
         try {

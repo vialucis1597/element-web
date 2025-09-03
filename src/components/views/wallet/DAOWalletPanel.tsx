@@ -48,13 +48,29 @@ const DAOWalletPanel: React.FC<Props> = ({ onClose }) => {
                 throw new Error("유효하지 않은 니모닉 문구입니다");
             }
 
-            const restoredWallet = wallet.createDAOWalletFromMnemonic(
+            const restoredWallet = await wallet.createDAOWalletFromMnemonic(
                 selectedDaoId,
                 `Restored DAO ${selectedDaoId.substring(0, 8)}`,
                 "B",
                 1,
                 mnemonic.trim()
             );
+
+            // 복구 성공 알림
+            Modal.createDialog(InfoDialog, {
+                title: "DAO 지갑 복구 완료",
+                description: (
+                    <div>
+                        <p><strong>DAO 지갑이 복구되었습니다!</strong></p>
+                        <p>지갑 주소: <code>{restoredWallet.address}</code></p>
+                        <p>복구된 잔액: <strong>{restoredWallet.balance}B</strong></p>
+                        {restoredWallet.balance > 0 && (
+                            <p><em>원장에서 기존 거래 기록을 바탕으로 잔액을 복구했습니다.</em></p>
+                        )}
+                    </div>
+                ),
+                button: "확인"
+            });
 
             DAOContributionTracker.getInstance().initialize();
             

@@ -2,6 +2,9 @@ import { generateMnemonic, mnemonicToSeedSync, validateMnemonic } from "bip39";
 // @ts-ignore
 const HDKey = require("hdkey");
 import { keccak256 } from "js-sha3";
+import { MatrixClientPeg } from "../MatrixClientPeg";
+import { EventType, type Room } from "matrix-js-sdk/src/matrix";
+import SpaceStore from "../stores/spaces/SpaceStore";
 
 export interface DAOWalletData {
     daoId: string;
@@ -44,18 +47,18 @@ export class DAOMnemonicWallet {
         return generateMnemonic(128); // 12 words
     }
 
-    createDAOWallet(daoId: string, daoName: string, currency: string = "B", contributionValue: number = 1): DAOWalletData {
+    async createDAOWallet(daoId: string, daoName: string, currency: string = "B", contributionValue: number = 1): Promise<DAOWalletData> {
         const mnemonic = this.generateNewMnemonic();
-        return this.createDAOWalletFromMnemonic(daoId, daoName, currency, contributionValue, mnemonic);
+        return await this.createDAOWalletFromMnemonic(daoId, daoName, currency, contributionValue, mnemonic);
     }
 
-    createDAOWalletFromMnemonic(
+    async createDAOWalletFromMnemonic(
         daoId: string, 
         daoName: string, 
         currency: string, 
         contributionValue: number, 
         mnemonic: string
-    ): DAOWalletData {
+    ): Promise<DAOWalletData> {
         if (!validateMnemonic(mnemonic)) {
             throw new Error("Invalid mnemonic phrase");
         }
@@ -67,6 +70,9 @@ export class DAOMnemonicWallet {
         const publicKey = wallet.publicKey;
         const address = "0x" + keccak256(publicKey.slice(1)).slice(-40);
         
+        // 원장에서 잔액 복구 시도
+        const recoveredBalance = await this.recoverBalanceFromLedger(daoId, address);
+        
         const daoWallet: DAOWalletData = {
             daoId,
             daoName,
@@ -74,7 +80,7 @@ export class DAOMnemonicWallet {
             address,
             privateKey: wallet.privateKey!.toString('hex'),
             currency,
-            balance: 0,
+            balance: recoveredBalance,
             contributionValue,
             createdAt: new Date().toISOString()
         };
@@ -254,6 +260,61 @@ export class DAOMnemonicWallet {
 
     getTotalBalance(): number {
         return Array.from(this.daoWallets.values()).reduce((total, wallet) => total + wallet.balance, 0);
+    }
+
+    // 원장에서 지갑 주소의 최신 잔액 복구
+    private async recoverBalanceFromLedger(daoId: string, walletAddress: string): Promise<number> {
+        try {
+            const ledgerRoom = this.findLedgerRoom(daoId);
+            if (!ledgerRoom) {
+                console.log(`💰 No ledger room found for DAO ${daoId}, starting with balance 0`);
+                return 0;
+            }
+
+            const timeline = ledgerRoom.getLiveTimeline();
+            const events = timeline.getEvents().reverse(); // 최신부터 검색
+            
+            for (const event of events) {
+                if (event.getType() === EventType.RoomMessage) {
+                    const content = event.getContent();
+                    const transactionData = content.transaction_data;
+                    
+                    if (transactionData && 
+                        transactionData.to === walletAddress && 
+                        typeof transactionData.balance === 'number') {
+                        console.log(`💰 Recovered balance for ${walletAddress}: ${transactionData.balance}B`);
+                        return transactionData.balance;
+                    }
+                }
+            }
+            
+            console.log(`💰 No transaction history found for ${walletAddress}, starting with balance 0`);
+            return 0;
+        } catch (error) {
+            console.error("Error recovering balance from ledger:", error);
+            return 0;
+        }
+    }
+
+    // DAO의 원장 룸 찾기
+    private findLedgerRoom(daoId: string): Room | null {
+        try {
+            const client = MatrixClientPeg.safeGet();
+            const daoSpace = client.getRoom(daoId);
+            if (!daoSpace) return null;
+
+            const children = SpaceStore.instance.getChildren(daoId);
+            for (const child of children) {
+                const room = client.getRoom(child.roomId);
+                if (room && !room.isSpaceRoom() && room.name === "ledger") {
+                    return room;
+                }
+            }
+            return null;
+        } catch (error) {
+            console.error("Error finding ledger room:", error);
+            return null;
+        }
     }
 }
 

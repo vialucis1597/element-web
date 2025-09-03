@@ -46,7 +46,7 @@ const DAOWalletSection: React.FC<Props> = ({ space }) => {
         setError(null);
 
         try {
-            const newWallet = wallet.createDAOWallet(daoId, daoName);
+            const newWallet = await wallet.createDAOWallet(daoId, daoName);
             setWalletData(newWallet);
             
             const modal = Modal.createDialog(InfoDialog, {
@@ -91,7 +91,7 @@ const DAOWalletSection: React.FC<Props> = ({ space }) => {
                 throw new Error("유효하지 않은 니모닉 문구입니다");
             }
 
-            const restoredWallet = wallet.createDAOWalletFromMnemonic(
+            const restoredWallet = await wallet.createDAOWalletFromMnemonic(
                 daoId, 
                 daoName, 
                 "B", 
@@ -99,6 +99,23 @@ const DAOWalletSection: React.FC<Props> = ({ space }) => {
                 mnemonic.trim()
             );
             setWalletData(restoredWallet);
+            
+            // 복구 성공 메시지 표시
+            const modal = Modal.createDialog(InfoDialog, {
+                title: "DAO 지갑 복구 완료",
+                description: (
+                    <div>
+                        <p><strong>{daoName} DAO 지갑이 복구되었습니다!</strong></p>
+                        <p>지갑 주소: <code>{restoredWallet.address}</code></p>
+                        <p>복구된 잔액: <strong>{restoredWallet.balance}B</strong></p>
+                        {restoredWallet.balance > 0 && (
+                            <p><em>원장에서 기존 거래 기록을 바탕으로 잔액을 복구했습니다.</em></p>
+                        )}
+                    </div>
+                ),
+                button: "확인"
+            });
+            
             setShowMnemonicInput(false);
             setMnemonic("");
         } catch (err) {
