@@ -280,7 +280,7 @@ export const SpaceCreateForm: React.FC<ISpaceCreateFormProps> = ({
                     domain={domain}
                     value={alias}
                     placeholder={name ? nameToLocalpart(name) : _t("create_space|address_placeholder")}
-                    label={_t("create_space|address_label")}
+                    label={_t("create_space|address_label") + " (Auto-generated)"}
                     disabled={busy}
                     onKeyDown={onKeyDown}
                 />
@@ -355,7 +355,27 @@ const SpaceCreateMenu: React.FC<{
 
             onFinished();
         } catch (e) {
-            logger.error(e);
+            logger.error("DAO creation failed:", e);
+            setBusy(false);
+            
+            // 주소 중복 에러 처리
+            if (e.message?.includes("Room alias") || e.message?.includes("already taken") || e.errcode === "M_ROOM_IN_USE") {
+                console.log("Address already taken, showing error to user");
+                // 주소 필드에 포커스하고 에러 표시
+                if (spaceAliasField.current) {
+                    spaceAliasField.current.focus();
+                    // 강제로 validation 실패 상태로 만들기
+                    spaceAliasField.current.validate({ 
+                        allowEmpty: false, 
+                        focused: true
+                    });
+                }
+            } else {
+                // 기타 에러의 경우 이름 필드에 포커스
+                if (spaceNameField.current) {
+                    spaceNameField.current.focus();
+                }
+            }
         }
     };
 
