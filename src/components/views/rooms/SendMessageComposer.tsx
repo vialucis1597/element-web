@@ -566,6 +566,19 @@ export class SendMessageComposer extends React.Component<ISendMessageComposerPro
             // don't bother sending an empty message
             if (!content.body.trim()) return;
 
+            // DCA 룸에서 메시지에 지갑 주소 포함
+            const daoInfo = this.getDAOInfoIfDCARoom(this.props.room);
+            if (daoInfo) {
+                const wallet = DAOMnemonicWallet.getInstance();
+                const daoWallet = wallet.getDAOWallet(daoInfo.daoId);
+                if (daoWallet) {
+                    // 메시지 메타데이터에 지갑 주소 추가
+                    content.wallet_address = daoWallet.address;
+                    content.dao_id = daoInfo.daoId;
+                    console.log(`💰 Adding wallet address to DCA message: ${daoWallet.address}`);
+                }
+            }
+
             if (SettingsStore.getValue("Performance.addSendMessageTimingMetadata")) {
                 decorateStartSendingTime(content);
             }
