@@ -145,27 +145,25 @@ function findDAOSpace(room: Room): Room | null {
 
 // Check if user has verification authority in DAO space
 function hasVerificationAuthority(room: Room, userId: string): boolean {
-    // DCA 룸에서는 모든 멤버가 검증 권한을 가짐
-    if (isDCARoom(room)) {
-        console.log("✅ DCA room - all members have verification authority");
-        return true;
-    }
-    
     const daoSpace = findDAOSpace(room);
-    if (!daoSpace) return false;
+    if (!daoSpace) {
+        console.log("❌ No DAO space found for verification authority check");
+        return false;
+    }
     
     // Get power levels from DAO space
     const plEvent = daoSpace.currentState.getStateEvents(EventType.RoomPowerLevels, "");
     const plContent = plEvent?.getContent() ?? {};
     
     const userLevel = plContent.users?.[userId] ?? plContent.users_default ?? 0;
-    const verificationLevel = plContent.verification ?? 75;
+    const verificationLevel = plContent.verification ?? 50; // 기본 검증 권한 레벨을 50으로 설정
     
     console.log("🔍 Power level check:", {
         userId,
         userLevel,
         verificationLevel,
-        hasAuthority: userLevel >= verificationLevel
+        hasAuthority: userLevel >= verificationLevel,
+        daoSpaceName: daoSpace.name
     });
     
     return userLevel >= verificationLevel;
@@ -299,7 +297,10 @@ const ReactButton: React.FC<IReactButtonProps> = ({ mxEvent, reactions, onFocusC
             e.preventDefault();
             e.stopPropagation();
 
-            if (!canReact) return;
+            if (!canReact) {
+                console.log("❌ User cannot react - no verification authority");
+                return;
+            }
 
             // DCA 룸에서는 바로 ✅ 리액션 추가 (기여증명 발행)
             if (isDCA) {

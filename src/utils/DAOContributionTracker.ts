@@ -19,6 +19,7 @@ export class DAOContributionTracker {
     private recentContributions: Map<string, number> = new Map(); // userId+daoId -> timestamp
     private readonly CONTRIBUTION_COOLDOWN = 0; // 쿨다운 없음
     private isInitialized = false;
+    private processedVerifications: Set<string> = new Set(); // 중복 처리 방지: eventId+verifierId
 
     static getInstance(): DAOContributionTracker {
         if (!DAOContributionTracker.instance) {
@@ -441,7 +442,7 @@ export class DAOContributionTracker {
                 return;
             }
 
-            // 검증 처리 진행
+            // 검증 처리 진행 (이미 processVerificationForEvent에서 중복 체크를 하므로 안전)
             await this.processVerificationForEvent(originalEvent, event.getSender(), roomId);
         } catch (error) {
             console.error("💥 Error handling react event:", error);
@@ -451,6 +452,14 @@ export class DAOContributionTracker {
     // 검증 이벤트 처리 (별도 함수로 분리) - 외부에서 직접 호출 가능하도록 public으로 변경
     public async processVerificationForEvent(originalEvent: MatrixEvent, verifierUserId: string, roomId: string): Promise<void> {
         try {
+            // 중복 처리 방지
+            const verificationKey = `${originalEvent.getId()}-${verifierUserId}`;
+            if (this.processedVerifications.has(verificationKey)) {
+                console.log("⚠️ Verification already processed, skipping duplicate:", verificationKey);
+                return;
+            }
+            this.processedVerifications.add(verificationKey);
+            
             // 원본 메시지 작성자(기여자)에게 토큰 지급
             const originalAuthor = originalEvent.getSender();
             console.log("💰 Rewarding contributor:", originalAuthor);
