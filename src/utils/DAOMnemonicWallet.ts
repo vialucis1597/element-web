@@ -271,10 +271,54 @@ export class DAOMnemonicWallet {
                 return 0;
             }
 
-            const timeline = ledgerRoom.getLiveTimeline();
-            const events = timeline.getEvents().reverse(); // 최신부터 검색
+            console.log(`🔍 Starting balance recovery for ${walletAddress} in DAO ${daoId}`);
             
-            for (const event of events) {
+            // 전체 룸 히스토리를 로드하기 위해 페이지네이션 사용
+            const client = MatrixClientPeg.safeGet();
+            const timeline = ledgerRoom.getLiveTimeline();
+            
+            // 먼저 현재 로드된 이벤트에서 검색
+            let allEvents = timeline.getEvents();
+            console.log(`📝 Currently loaded events: ${allEvents.length}`);
+            
+            // 과거 이벤트들을 더 로드 (최대 500개 이벤트까지 로드)
+            let loadedMore = true;
+            let loadAttempts = 0;
+            const maxAttempts = 10; // 최대 10번 시도 (보통 50개씩 로드)
+            
+            while (loadedMore && loadAttempts < maxAttempts) {
+                try {
+                    const paginationToken = timeline.getPaginationToken("b"); // backward
+                    if (!paginationToken) {
+                        console.log("📝 No more events to load (no pagination token)");
+                        break;
+                    }
+                    
+                    console.log(`📝 Loading more events... (attempt ${loadAttempts + 1})`);
+                    await client.paginateEventTimeline(timeline, { backwards: true, limit: 50 });
+                    
+                    const newEventCount = timeline.getEvents().length;
+                    if (newEventCount === allEvents.length) {
+                        console.log("📝 No new events loaded");
+                        loadedMore = false;
+                    } else {
+                        allEvents = timeline.getEvents();
+                        console.log(`📝 Loaded more events, total: ${newEventCount}`);
+                    }
+                    
+                    loadAttempts++;
+                } catch (paginationError) {
+                    console.warn("⚠️ Failed to load more events:", paginationError);
+                    break;
+                }
+            }
+            
+            console.log(`📝 Final event count for analysis: ${allEvents.length}`);
+            
+            // 최신부터 검색 (reverse)
+            const eventsReversed = [...allEvents].reverse();
+            
+            for (const event of eventsReversed) {
                 if (event.getType() === EventType.RoomMessage) {
                     const content = event.getContent();
                     const transactionData = content.transaction_data;
@@ -282,13 +326,14 @@ export class DAOMnemonicWallet {
                     if (transactionData && 
                         transactionData.to === walletAddress && 
                         typeof transactionData.balance === 'number') {
-                        console.log(`💰 Recovered balance for ${walletAddress}: ${transactionData.balance}B`);
+                        console.log(`💰 Found latest transaction for ${walletAddress}: ${transactionData.balance}B`);
+                        console.log(`📅 Transaction timestamp: ${new Date(transactionData.timestamp).toISOString()}`);
                         return transactionData.balance;
                     }
                 }
             }
             
-            console.log(`💰 No transaction history found for ${walletAddress}, starting with balance 0`);
+            console.log(`💰 No transaction history found for ${walletAddress} after checking ${allEvents.length} events`);
             return 0;
         } catch (error) {
             console.error("Error recovering balance from ledger:", error);

@@ -162,8 +162,18 @@ export class DAOContributionTracker {
         try {
             const client = MatrixClientPeg.safeGet();
             
-            // 현재 잔액 조회 (이전 트랜잭션에서)
-            const currentBalance = await this.getLatestBalanceFromLedger(ledgerRoom, recipientWalletAddress);
+            // 현재 잔액 조회 (이전 트랜잭션에서) - 시간 제한 설정
+            let currentBalance = 0;
+            try {
+                const balancePromise = this.getLatestBalanceFromLedger(ledgerRoom, recipientWalletAddress);
+                const timeoutPromise = new Promise<number>((_, reject) => 
+                    setTimeout(() => reject(new Error("Balance check timeout")), 5000)
+                );
+                currentBalance = await Promise.race([balancePromise, timeoutPromise]);
+            } catch (balanceError) {
+                console.warn("⚠️ Could not get current balance, using 0:", balanceError);
+                currentBalance = 0;
+            }
             const newBalance = currentBalance + amount;
             
             // 기본 트랜잭션 데이터 생성
@@ -248,13 +258,19 @@ export class DAOContributionTracker {
         }
     }
 
-    // 원장에서 특정 지갑 주소의 최신 잔액 조회
+    // 원장에서 특정 지갑 주소의 최신 잔액 조회 (빠른 버전)
     private async getLatestBalanceFromLedger(ledgerRoom: Room, walletAddress: string): Promise<number> {
         try {
-            const timeline = ledgerRoom.getLiveTimeline();
-            const events = timeline.getEvents().reverse(); // 최신부터 검색
+            console.log(`🔍 Getting latest balance for ${walletAddress} (quick check)`);
             
-            for (const event of events) {
+            const timeline = ledgerRoom.getLiveTimeline();
+            const currentEvents = timeline.getEvents();
+            console.log(`📝 Checking ${currentEvents.length} currently loaded events`);
+            
+            // 현재 로드된 이벤트에서만 검색 (빠른 처리)
+            const eventsReversed = [...currentEvents].reverse();
+            
+            for (const event of eventsReversed) {
                 if (event.getType() === EventType.RoomMessage) {
                     const content = event.getContent();
                     const transactionData = content.transaction_data;
@@ -262,13 +278,13 @@ export class DAOContributionTracker {
                     if (transactionData && 
                         transactionData.to === walletAddress && 
                         typeof transactionData.balance === 'number') {
-                        console.log(`💰 Found latest balance for ${walletAddress}: ${transactionData.balance}`);
+                        console.log(`💰 Found latest balance for ${walletAddress}: ${transactionData.balance}B`);
                         return transactionData.balance;
                     }
                 }
             }
             
-            console.log(`💰 No previous balance found for ${walletAddress}, starting from 0`);
+            console.log(`💰 No previous balance found in loaded events for ${walletAddress}, starting from 0`);
             return 0;
         } catch (error) {
             console.error("Error reading balance from ledger:", error);
@@ -298,22 +314,26 @@ export class DAOContributionTracker {
     // Verification 이벤트 처리 (일반 react와 구분)
     async handleVerificationEvent(event: MatrixEvent): Promise<void> {
         try {
-            console.log("👍 React event received:", event.getType(), event.getContent());
+            console.log("🔥 VERIFICATION EVENT START:", {
+                type: event.getType(),
+                sender: event.getSender(),
+                content: event.getContent()
+            });
             
             // Reaction 이벤트인지 확인 (annotation relation)
             const content = event.getContent();
             if (content?.["m.relates_to"]?.rel_type !== RelationType.Annotation) {
-                console.log("Not an annotation reaction, skipping");
+                console.log("❌ Not an annotation reaction, skipping");
                 return;
             }
 
             // Verification 이벤트인지 확인 (일반 react는 무시)
             if (!content.verification || content.verification !== true) {
-                console.log("Not a verification event, skipping contribution award");
+                console.log("❌ Not a verification event, skipping contribution award");
                 return;
             }
             
-            console.log("✅ Verification event detected, processing contribution award");
+            console.log("✅ VERIFICATION EVENT CONFIRMED, processing contribution award");
 
             const roomId = event.getRoomId();
             if (!roomId || !this.isDCARoom(roomId)) {
@@ -386,7 +406,12 @@ export class DAOContributionTracker {
         // DAO 지갑 존재 확인 및 생성
         if (!this.wallet.hasDAOWallet(daoInfo.daoId)) {
             console.log("⚠️ DAO wallet not found, creating new wallet for", daoInfo.daoName);
-            await this.wallet.createDAOWallet(daoInfo.daoId, daoInfo.daoName, "B", daoInfo.contributionValue);
+            try {
+                await this.wallet.createDAOWallet(daoInfo.daoId, daoInfo.daoName, "B", daoInfo.contributionValue);
+            } catch (walletCreationError) {
+                console.error("❌ Failed to create DAO wallet:", walletCreationError);
+                return; // 지갑 생성 실패 시 더 이상 진행하지 않음
+            }
         }
 
         try {
