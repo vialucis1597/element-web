@@ -65,68 +65,47 @@ import PinningUtils from "../../../utils/PinningUtils";
 import PosthogTrackers from "../../../PosthogTrackers.ts";
 import { HideActionButton } from "./HideActionButton.tsx";
 import SpaceStore from "../../../stores/spaces/SpaceStore";
+import DAOContributionTracker from "../../../utils/DAOContributionTracker";
 
-// Check if room is a DCA room (child of DAO space with name "DCA")
+// DCA 룸인지 확인 (DCA 스페이스 안의 모든 룸) - DAOContributionTracker와 동일한 로직
 function isDCARoom(room: Room): boolean {
     if (!room) return false;
     
-    // Check if room name is "DCA"
-    if (room.name !== "DCA") return false;
+    console.log("🔍 Checking if room is DCA:", {
+        roomId: room.roomId,
+        roomName: room?.name,
+        isRoom: !!room
+    });
     
-    // Check if this room is a space (DCA should be a subspace)
-    if (!room.isSpaceRoom()) return false;
-    
-    // Check if parent is a DAO space
-    const client = room.client;
+    // DCA 스페이스 안의 룸인지 확인
     const spaceEvents = room.currentState.getStateEvents(EventType.SpaceParent);
+    console.log("🔍 Checking parent spaces:", spaceEvents.length);
     
     for (const event of spaceEvents) {
         const parentRoomId = event.getStateKey();
         if (!parentRoomId) continue;
+
+        const parentRoom = room.client.getRoom(parentRoomId);
+        console.log("🔍 Parent room:", {
+            parentRoomId,
+            parentName: parentRoom?.name,
+            isSpace: parentRoom?.isSpaceRoom()
+        });
         
-        const parentRoom = client.getRoom(parentRoomId);
-        if (!parentRoom?.isSpaceRoom()) continue;
-        
-        // Check if parent is a DAO (has both GOV and DCA children)
-        const children = SpaceStore.instance.getChildren(parentRoomId);
-        const subspaces = children.filter(child => child.isSpaceRoom());
-        const hasGOV = subspaces.some(child => child.name === "GOV");
-        const hasDCA = subspaces.some(child => child.name === "DCA");
-        
-        if (hasGOV && hasDCA) {
+        // 부모가 DCA 스페이스인지 확인
+        if (parentRoom?.isSpaceRoom() && parentRoom.name === "DCA") {
+            console.log("✅ Found DCA room in DCA space:", room.name);
             return true;
         }
     }
-    
+
+    console.log("❌ Not in DCA space");
     return false;
 }
 
-// Check if room is inside DCA space (for rooms within DCA)
+// Check if room is inside DCA space (for rooms within DCA) - 더 이상 사용하지 않음, isDCARoom으로 통일
 function isInDCASpace(room: Room): boolean {
-    if (!room) return false;
-    
-    const client = room.client;
-    const spaceEvents = room.currentState.getStateEvents(EventType.SpaceParent);
-    
-    for (const event of spaceEvents) {
-        const parentRoomId = event.getStateKey();
-        if (!parentRoomId) continue;
-        
-        const parentRoom = client.getRoom(parentRoomId);
-        if (!parentRoom) continue;
-        
-        // Check if direct parent is DCA
-        if (parentRoom.name === "DCA" && parentRoom.isSpaceRoom()) {
-            return true;
-        }
-        
-        // Recursively check if parent is in DCA space
-        if (isInDCASpace(parentRoom)) {
-            return true;
-        }
-    }
-    
-    return false;
+    return isDCARoom(room);
 }
 
 // Find DAO space from room
@@ -166,6 +145,12 @@ function findDAOSpace(room: Room): Room | null {
 
 // Check if user has verification authority in DAO space
 function hasVerificationAuthority(room: Room, userId: string): boolean {
+    // DCA 룸에서는 모든 멤버가 검증 권한을 가짐
+    if (isDCARoom(room)) {
+        console.log("✅ DCA room - all members have verification authority");
+        return true;
+    }
+    
     const daoSpace = findDAOSpace(room);
     if (!daoSpace) return false;
     
@@ -175,6 +160,13 @@ function hasVerificationAuthority(room: Room, userId: string): boolean {
     
     const userLevel = plContent.users?.[userId] ?? plContent.users_default ?? 0;
     const verificationLevel = plContent.verification ?? 75;
+    
+    console.log("🔍 Power level check:", {
+        userId,
+        userLevel,
+        verificationLevel,
+        hasAuthority: userLevel >= verificationLevel
+    });
     
     return userLevel >= verificationLevel;
 }
@@ -271,7 +263,7 @@ const ReactButton: React.FC<IReactButtonProps> = ({ mxEvent, reactions, onFocusC
     // Check if this is a DCA room and user has verification authority
     const room = mxEvent.getRoomId() ? MatrixClientPeg.safeGet().getRoom(mxEvent.getRoomId()!) : null;
     const currentUserId = MatrixClientPeg.safeGet().getSafeUserId();
-    const isDCA = room ? (isDCARoom(room) || isInDCASpace(room)) : false;
+    const isDCA = room ? isDCARoom(room) : false;
     
     // Check if message is already verified (has ✅ reaction)
     const isAlreadyVerified = isDCA && reactions?.getAnnotationsBySender() ? 
@@ -320,6 +312,18 @@ const ReactButton: React.FC<IReactButtonProps> = ({ mxEvent, reactions, onFocusC
                     return;
                 }
                 
+                console.log("🔥 DCA VERIFICATION CLICKED! Starting immediate transaction process...");
+                
+                // 즉시 트랜잭션 처리 시작
+                const tracker = DAOContributionTracker.getInstance();
+                tracker.initialize(); // 확실히 초기화
+                const verifierUserId = client.getSafeUserId();
+                
+                // 바로 검증 이벤트 처리 (리액션 전송과 동시에)
+                tracker.processVerificationForEvent(mxEvent, verifierUserId, roomId).catch(error => {
+                    console.error("💥 Failed to process verification immediately:", error);
+                });
+                
                 const reactionKey = "✅";
                 const verificationData = {
                     "m.relates_to": {
@@ -332,7 +336,9 @@ const ReactButton: React.FC<IReactButtonProps> = ({ mxEvent, reactions, onFocusC
                     "issuer": client.getSafeUserId(),
                 };
                 
-                client.sendEvent(roomId, EventType.Reaction, verificationData).catch(err => {
+                client.sendEvent(roomId, EventType.Reaction, verificationData).then(() => {
+                    console.log("✅ Verification reaction sent successfully");
+                }).catch(err => {
                     console.error("Failed to send verification:", err);
                 });
                 return;

@@ -448,8 +448,8 @@ export class DAOContributionTracker {
         }
     }
 
-    // 검증 이벤트 처리 (별도 함수로 분리)
-    private async processVerificationForEvent(originalEvent: MatrixEvent, verifierUserId: string, roomId: string): Promise<void> {
+    // 검증 이벤트 처리 (별도 함수로 분리) - 외부에서 직접 호출 가능하도록 public으로 변경
+    public async processVerificationForEvent(originalEvent: MatrixEvent, verifierUserId: string, roomId: string): Promise<void> {
         try {
             // 원본 메시지 작성자(기여자)에게 토큰 지급
             const originalAuthor = originalEvent.getSender();
@@ -477,6 +477,13 @@ export class DAOContributionTracker {
             if (!daoInfo) {
                 console.log("❌ No DAO info found, skipping");
                 return;
+            }
+
+            // 검증자가 해당 DAO의 지갑을 가지고 있는지 확인
+            if (!this.wallet.hasDAOWallet(daoInfo.daoId)) {
+                console.warn("⚠️ Verifier does not have DAO wallet for:", daoInfo.daoName);
+                console.warn("💡 Verification will proceed but transaction may not be signed properly");
+                // 검증은 계속 진행하되, 서명 없이 트랜잭션 기록
             }
 
             // 쿨다운 확인 (기여자 기준)
