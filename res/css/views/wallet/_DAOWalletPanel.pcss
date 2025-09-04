@@ -447,6 +447,150 @@ Please see LICENSE files in the repository root for full details.
     }
 }
 
+/* DAOWalletSection 스타일 */
+.mx_DAOWalletSection {
+    background: var(--cpd-color-bg-subtle-secondary);
+    border-radius: 8px;
+    padding: 20px;
+    margin-bottom: 20px;
+    border: 1px solid var(--cpd-color-border-interactive-secondary);
+}
+
+.mx_DAOWalletSection_header {
+    margin-bottom: 16px;
+}
+
+.mx_DAOWalletSection_header h3 {
+    margin: 0;
+    color: var(--cpd-color-text-primary);
+    font-size: 18px;
+    font-weight: 600;
+}
+
+.mx_DAOWalletSection_walletInfo {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.mx_DAOWalletSection_address {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.mx_DAOWalletSection_addressRow {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.mx_DAOWalletSection_addressValue {
+    flex: 1;
+    background: var(--cpd-color-bg-canvas-default);
+    padding: 12px;
+    border-radius: 6px;
+    font-family: var(--cpd-font-family-mono);
+    font-size: 14px;
+    color: var(--cpd-color-text-primary);
+    border: 1px solid var(--cpd-color-border-interactive-secondary);
+    word-break: break-all;
+}
+
+.mx_DAOWalletSection_copyLink {
+    color: var(--cpd-color-text-primary);
+    font-size: 12px;
+    text-decoration: underline;
+    align-self: flex-end;
+    margin-left: 12px;
+}
+
+.mx_DAOWalletSection_copyLink:hover {
+    color: var(--cpd-color-text-primary);
+    text-decoration: underline;
+}
+
+.mx_DAOWalletSection_balance {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.mx_DAOWalletSection_label {
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--cpd-color-text-secondary);
+}
+
+.mx_DAOWalletSection_balanceValue {
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--cpd-color-text-success-primary);
+}
+
+.mx_DAOWalletSection_actions {
+    display: flex;
+    gap: 16px;
+    justify-content: flex-end;
+    align-items: center;
+}
+
+.mx_DAOWalletSection_actionLink {
+    color: var(--cpd-color-text-primary);
+    font-size: 14px;
+    text-decoration: underline;
+}
+
+.mx_DAOWalletSection_actionLink:hover {
+    color: var(--cpd-color-text-primary);
+    text-decoration: underline;
+}
+
+.mx_DAOWalletSection_deleteLink {
+    color: var(--cpd-color-text-critical-primary);
+    text-decoration: underline;
+}
+
+.mx_DAOWalletSection_deleteLink:hover {
+    color: var(--cpd-color-text-critical-primary);
+    text-decoration: underline;
+}
+
+.mx_DAOWalletSection_error {
+    background: var(--cpd-color-bg-critical-subtle);
+    color: var(--cpd-color-text-critical-primary);
+    padding: 12px;
+    border-radius: 6px;
+    margin-bottom: 16px;
+    border: 1px solid var(--cpd-color-border-critical-subtle);
+}
+
+.mx_DAOWalletSection_actions {
+    display: flex;
+    gap: 10px;
+    justify-content: center;
+    margin-top: 20px;
+}
+
+.mx_DAOWalletSection_createButton,
+.mx_DAOWalletSection_restoreButton {
+    padding: 10px 20px;
+    border-radius: 6px;
+    font-weight: 500;
+    min-width: 120px;
+}
+
+.mx_DAOWalletSection_restore {
+    margin-top: 20px;
+}
+
+.mx_DAOWalletSection_restoreActions {
+    display: flex;
+    gap: 10px;
+    justify-content: center;
+    margin-top: 15px;
+}
+
 /* 반응형 디자인 */
 @media (max-width: 768px) {
     .mx_DAOWalletPanel {
@@ -469,5 +613,15 @@ Please see LICENSE files in the repository root for full details.
     .mx_DAOWalletPanel_setupActions {
         flex-direction: column;
         align-items: center;
+    }
+
+    .mx_DAOWalletSection_addressRow {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .mx_DAOWalletSection_actions {
+        justify-content: center;
+        flex-wrap: wrap;
     }
 }

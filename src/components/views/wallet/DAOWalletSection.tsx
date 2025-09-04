@@ -51,12 +51,12 @@ const DAOWalletSection: React.FC<Props> = ({ space }) => {
             
             const backupData = `DAO: ${daoId}\nName: ${daoName}\nMnemonic: ${newWallet.mnemonic}\nAddress: ${newWallet.address}\n\n`;
             
-            const modal = Modal.createDialog(InfoDialog, {
-                title: "DAO 지갑 생성 완료",
+            Modal.createDialog(InfoDialog, {
+                title: "DAO Wallet Created Successfully",
                 description: (
                     <div>
-                        <p><strong>{daoName} DAO 전용 지갑이 생성되었습니다!</strong></p>
-                        <p>다음 정보를 안전하게 보관하세요:</p>
+                        <p><strong>Your {daoName} DAO wallet has been created!</strong></p>
+                        <p>Please keep the following information safe:</p>
                         <div style={{ 
                             backgroundColor: "#f5f5f5", 
                             padding: "15px", 
@@ -67,10 +67,10 @@ const DAOWalletSection: React.FC<Props> = ({ space }) => {
                             fontSize: "12px",
                             lineHeight: "1.4"
                         }}>
-                            <div><strong>DAO 주소:</strong> {daoId}</div>
-                            <div><strong>DAO 이름:</strong> {daoName}</div>
-                            <div><strong>니모닉:</strong> {newWallet.mnemonic}</div>
-                            <div><strong>지갑 주소:</strong> {newWallet.address}</div>
+                            <div><strong>DAO Address:</strong> {daoId}</div>
+                            <div><strong>DAO Name:</strong> {daoName}</div>
+                            <div><strong>Mnemonic:</strong> {newWallet.mnemonic}</div>
+                            <div><strong>Wallet Address:</strong> {newWallet.address}</div>
                         </div>
                         <div style={{ marginTop: "15px" }}>
                             <AccessibleButton
@@ -80,23 +80,23 @@ const DAOWalletSection: React.FC<Props> = ({ space }) => {
                                     // 간단한 피드백
                                     const btn = document.activeElement as HTMLElement;
                                     const originalText = btn.textContent;
-                                    btn.textContent = "복사됨!";
+                                    btn.textContent = "Copied!";
                                     setTimeout(() => {
                                         btn.textContent = originalText;
                                     }, 1000);
                                 }}
                                 style={{ fontSize: "14px", padding: "8px 16px" }}
                             >
-                                전체 정보 복사
+                                Copy All Information
                             </AccessibleButton>
                         </div>
-                        <p><em>이 정보를 분실하면 지갑을 복원할 수 없습니다.</em></p>
+                        <p><em>If you lose this information, you will not be able to restore your wallet.</em></p>
                     </div>
                 ),
-                button: "확인"
+                button: "OK"
             });
         } catch (err) {
-            setError(err instanceof Error ? err.message : "지갑 생성 실패");
+            setError(err instanceof Error ? err.message : "Failed to create wallet");
         } finally {
             setIsLoading(false);
         }
@@ -104,7 +104,7 @@ const DAOWalletSection: React.FC<Props> = ({ space }) => {
 
     const handleRestoreWallet = useCallback(async () => {
         if (!mnemonic.trim()) {
-            setError("니모닉 문구를 입력해주세요");
+            setError("Please enter a mnemonic phrase");
             return;
         }
 
@@ -113,7 +113,7 @@ const DAOWalletSection: React.FC<Props> = ({ space }) => {
 
         try {
             if (!wallet.validateMnemonicPhrase(mnemonic.trim())) {
-                throw new Error("유효하지 않은 니모닉 문구입니다");
+                throw new Error("Invalid mnemonic phrase");
             }
 
             const restoredWallet = await wallet.createDAOWalletFromMnemonic(
@@ -126,25 +126,25 @@ const DAOWalletSection: React.FC<Props> = ({ space }) => {
             setWalletData(restoredWallet);
             
             // 복구 성공 메시지 표시
-            const modal = Modal.createDialog(InfoDialog, {
-                title: "DAO 지갑 복구 완료",
+            Modal.createDialog(InfoDialog, {
+                title: "DAO Wallet Restored Successfully",
                 description: (
                     <div>
-                        <p><strong>{daoName} DAO 지갑이 복구되었습니다!</strong></p>
-                        <p>지갑 주소: <code>{restoredWallet.address}</code></p>
-                        <p>복구된 잔액: <strong>{restoredWallet.balance}B</strong></p>
+                        <p><strong>Your {daoName} DAO wallet has been restored!</strong></p>
+                        <p>Wallet Address: <code>{restoredWallet.address}</code></p>
+                        <p>Restored Balance: <strong>{restoredWallet.balance}B</strong></p>
                         {restoredWallet.balance > 0 && (
-                            <p><em>원장에서 기존 거래 기록을 바탕으로 잔액을 복구했습니다.</em></p>
+                            <p><em>Balance was recovered from existing transaction records in the ledger.</em></p>
                         )}
                     </div>
                 ),
-                button: "확인"
+                button: "OK"
             });
             
             setShowMnemonicInput(false);
             setMnemonic("");
         } catch (err) {
-            setError(err instanceof Error ? err.message : "지갑 복원 실패");
+            setError(err instanceof Error ? err.message : "Failed to restore wallet");
         } finally {
             setIsLoading(false);
         }
@@ -153,7 +153,7 @@ const DAOWalletSection: React.FC<Props> = ({ space }) => {
     const handleExportWallet = useCallback(() => {
         try {
             if (!walletData) {
-                throw new Error("지갑 정보를 찾을 수 없습니다");
+                throw new Error("Wallet information not found");
             }
 
             const exportData = `DAO: ${daoId}\nName: ${daoName}\nMnemonic: ${walletData.mnemonic}\nAddress: ${walletData.address}\n\n`;
@@ -166,7 +166,7 @@ const DAOWalletSection: React.FC<Props> = ({ space }) => {
             a.click();
             URL.revokeObjectURL(url);
         } catch (err) {
-            setError(err instanceof Error ? err.message : "지갑 내보내기 실패");
+            setError(err instanceof Error ? err.message : "Failed to export wallet");
         }
     }, [walletData, daoId, daoName]);
 
@@ -178,8 +178,8 @@ const DAOWalletSection: React.FC<Props> = ({ space }) => {
         return (
             <div className="mx_DAOWalletSection">
                 <div className="mx_DAOWalletSection_header">
-                    <h3>DAO 지갑</h3>
-                    <p>이 DAO 전용 지갑을 생성하거나 복원하세요</p>
+                    <h3>DAO Wallet</h3>
+                    <p>Create or restore your dedicated DAO wallet</p>
                 </div>
 
                 {error && (
@@ -196,7 +196,7 @@ const DAOWalletSection: React.FC<Props> = ({ space }) => {
                             disabled={isLoading}
                             className="mx_DAOWalletSection_createButton"
                         >
-                            {isLoading ? <Spinner w={16} h={16} /> : "새 지갑 생성"}
+                            {isLoading ? <Spinner w={16} h={16} /> : "Create New Wallet"}
                         </AccessibleButton>
 
                         <AccessibleButton
@@ -205,16 +205,16 @@ const DAOWalletSection: React.FC<Props> = ({ space }) => {
                             disabled={isLoading}
                             className="mx_DAOWalletSection_restoreButton"
                         >
-                            기존 지갑 복원
+                            Restore Existing Wallet
                         </AccessibleButton>
                     </div>
                 ) : (
                     <div className="mx_DAOWalletSection_restore">
                         <Field
-                            label="니모닉 문구 (12단어)"
+                            label="Mnemonic Phrase (12 words)"
                             placeholder="word1 word2 word3 ..."
                             value={mnemonic}
-                            onChange={(e) => setMnemonic(e.target.value)}
+                            onChange={(e: React.ChangeEvent<HTMLInputElement>) => setMnemonic(e.target.value)}
                             type="text"
                         />
                         
@@ -224,7 +224,7 @@ const DAOWalletSection: React.FC<Props> = ({ space }) => {
                                 onClick={handleRestoreWallet}
                                 disabled={isLoading || !mnemonic.trim()}
                             >
-                                {isLoading ? <Spinner w={16} h={16} /> : "복원하기"}
+                                {isLoading ? <Spinner w={16} h={16} /> : "Restore"}
                             </AccessibleButton>
                             
                             <AccessibleButton
@@ -236,7 +236,7 @@ const DAOWalletSection: React.FC<Props> = ({ space }) => {
                                 }}
                                 disabled={isLoading}
                             >
-                                취소
+                                Cancel
                             </AccessibleButton>
                         </div>
                     </div>
@@ -248,47 +248,68 @@ const DAOWalletSection: React.FC<Props> = ({ space }) => {
     return (
         <div className="mx_DAOWalletSection">
             <div className="mx_DAOWalletSection_header">
-                <h3>DAO 지갑</h3>
+                <h3>DAO Wallet ({daoName} Network)</h3>
             </div>
 
             <div className="mx_DAOWalletSection_walletInfo">
                 <div className="mx_DAOWalletSection_address">
-                    <span className="mx_DAOWalletSection_label">지갑 주소</span>
-                    <div className="mx_DAOWalletSection_addressValue">
-                        {walletData.address}
+                    <span className="mx_DAOWalletSection_label">Address</span>
+                    <div className="mx_DAOWalletSection_addressRow">
+                        <div className="mx_DAOWalletSection_addressValue">
+                            {walletData.address}
+                        </div>
+                        <a
+                            href="#"
+                            className="mx_DAOWalletSection_copyLink"
+                            onClick={(e) => {
+                                e.preventDefault();
+                                navigator.clipboard.writeText(walletData.address);
+                                // 간단한 피드백
+                                const element = e.currentTarget as HTMLElement;
+                                const originalText = element.textContent;
+                                element.textContent = "Copied!";
+                                setTimeout(() => {
+                                    element.textContent = originalText;
+                                }, 1000);
+                            }}
+                        >
+                            Copy
+                        </a>
                     </div>
                 </div>
 
                 <div className="mx_DAOWalletSection_balance">
-                    <span className="mx_DAOWalletSection_label">잔액</span>
+                    <span className="mx_DAOWalletSection_label">Balance</span>
                     <div className="mx_DAOWalletSection_balanceValue">
                         {formatCurrency(walletData.balance)} {walletData.currency}
                     </div>
                 </div>
 
-
-
                 <div className="mx_DAOWalletSection_actions">
-                    <AccessibleButton
-                        kind="secondary"
-                        onClick={handleExportWallet}
-                        className="mx_DAOWalletSection_exportButton"
+                    <a
+                        href="#"
+                        className="mx_DAOWalletSection_actionLink"
+                        onClick={(e) => {
+                            e.preventDefault();
+                            handleExportWallet();
+                        }}
                     >
-                        백업
-                    </AccessibleButton>
+                        Backup
+                    </a>
 
-                    <AccessibleButton
-                        kind="danger"
-                        onClick={() => {
-                            if (confirm(`정말로 ${daoName} DAO 지갑을 삭제하시겠습니까? 니모닉이 있어야 복원할 수 있습니다.`)) {
+                    <a
+                        href="#"
+                        className="mx_DAOWalletSection_actionLink mx_DAOWalletSection_deleteLink"
+                        onClick={(e) => {
+                            e.preventDefault();
+                            if (confirm(`Are you sure you want to delete the ${daoName} DAO wallet? You will need the mnemonic phrase to restore it.`)) {
                                 wallet.deleteDAOWallet(daoId);
                                 setWalletData(null);
                             }
                         }}
-                        className="mx_DAOWalletSection_deleteButton"
                     >
-                        삭제
-                    </AccessibleButton>
+                        Delete
+                    </a>
                 </div>
             </div>
         </div>

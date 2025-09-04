@@ -289,6 +289,11 @@ const SpaceLanding: React.FC<{ space: Room }> = ({ space }) => {
                         return _t("space|landing_welcome", {}, tags) as JSX.Element;
                     }}
                 </RoomName>
+                {isDaoSpace && (
+                    <div className="mx_SpaceRoomView_landing_address">
+                        {space.getCanonicalAlias() || `#${space.name?.toLowerCase().replace(/\s+/g, '-')}:${cli.getDomain()}`}
+                    </div>
+                )}
             </div>
             <div className="mx_SpaceRoomView_landing_infoBar">
                 <RoomInfoLine room={space} />
