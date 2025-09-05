@@ -290,6 +290,21 @@ const DAOWalletSection: React.FC<Props> = ({ space }) => {
         return new Intl.NumberFormat().format(amount);
     };
 
+    const handleSendClick = useCallback(async () => {
+        if (!walletData) return;
+
+        console.log(`💸 Opening send dialog for ${daoName}`);
+        
+        const SendTokenDialog = await import("../dialogs/SendTokenDialog");
+        Modal.createDialog(SendTokenDialog.default, {
+            daoId: daoId,
+            daoName: daoName,
+            senderAddress: walletData.address,
+            maxBalance: walletData.balance,
+            currency: walletData.currency,
+        });
+    }, [walletData, daoId, daoName]);
+
     if (!walletData) {
         return (
             <div className="mx_DAOWalletSection">
@@ -398,6 +413,15 @@ const DAOWalletSection: React.FC<Props> = ({ space }) => {
                     <span className="mx_DAOWalletSection_label">Balance</span>
                     <div className="mx_DAOWalletSection_balanceValue">
                         {formatCurrency(walletData.balance)} {walletData.currency}
+                    </div>
+                    <div className="mx_DAOWalletSection_sendButtonContainer">
+                        <AccessibleButton
+                            kind="primary"
+                            className="mx_DAOWalletSection_sendButton"
+                            onClick={handleSendClick}
+                        >
+                            Send
+                        </AccessibleButton>
                     </div>
                 </div>
 

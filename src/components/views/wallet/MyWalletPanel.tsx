@@ -321,6 +321,7 @@ const MyWalletPanel: React.FC<Props> = ({ onClose }) => {
         }
     }, []);
 
+
     const renderWalletInfo = () => {
         if (!walletData) return null;
 

@@ -123,6 +123,19 @@ export class DAOMnemonicWallet {
         return true;
     }
 
+    updateDAOWalletBalance(daoId: string, newBalance: number): boolean {
+        const wallet = this.daoWallets.get(daoId);
+        if (!wallet) return false;
+
+        wallet.balance = newBalance;
+        
+        this.saveWalletsToStorage();
+        this.notifyListeners();
+        
+        console.log(`💰 Updated balance for ${wallet.daoName}: ${newBalance} ${wallet.currency}`);
+        return true;
+    }
+
     awardContribution(daoId: string, multiplier: number = 1): boolean {
         const wallet = this.daoWallets.get(daoId);
         if (!wallet) return false;
@@ -247,7 +260,7 @@ export class DAOMnemonicWallet {
         this.listeners = this.listeners.filter(listener => listener !== callback);
     }
 
-    private notifyListeners(): void {
+    notifyListeners(): void {
         const summaries = this.getAllDAOWallets();
         this.listeners.forEach(listener => listener(summaries));
     }
@@ -380,12 +393,33 @@ export class DAOMnemonicWallet {
                     const content = event.getContent();
                     const transactionData = content.transaction_data;
                     
-                    if (transactionData && 
-                        transactionData.to === walletAddress && 
-                        typeof transactionData.balance === 'number') {
-                        console.log(`💰 Found latest transaction for ${walletAddress}: ${transactionData.balance}B`);
-                        console.log(`📅 Transaction timestamp: ${new Date(transactionData.timestamp).toISOString()}`);
-                        return transactionData.balance;
+                    if (transactionData) {
+                        // Check if this wallet address is involved in the transaction
+                        if (transactionData.to === walletAddress) {
+                            // This wallet received money - use recipientBalance if available
+                            if (typeof transactionData.recipientBalance === 'number') {
+                                console.log(`💰 Found latest recipient balance for ${walletAddress}: ${transactionData.recipientBalance}B`);
+                                console.log(`📅 Transaction timestamp: ${new Date(transactionData.timestamp).toISOString()}`);
+                                return transactionData.recipientBalance;
+                            } else if (typeof transactionData.balance === 'number') {
+                                // Fallback to legacy balance field
+                                console.log(`💰 Found latest balance (legacy) for ${walletAddress}: ${transactionData.balance}B`);
+                                console.log(`📅 Transaction timestamp: ${new Date(transactionData.timestamp).toISOString()}`);
+                                return transactionData.balance;
+                            }
+                        } else if (transactionData.from === walletAddress) {
+                            // This wallet sent money - use senderBalance if available
+                            if (typeof transactionData.senderBalance === 'number') {
+                                console.log(`💰 Found latest sender balance for ${walletAddress}: ${transactionData.senderBalance}B`);
+                                console.log(`📅 Transaction timestamp: ${new Date(transactionData.timestamp).toISOString()}`);
+                                return transactionData.senderBalance;
+                            } else if (typeof transactionData.balance === 'number') {
+                                // Fallback to legacy balance field
+                                console.log(`💰 Found latest balance (legacy) for ${walletAddress}: ${transactionData.balance}B`);
+                                console.log(`📅 Transaction timestamp: ${new Date(transactionData.timestamp).toISOString()}`);
+                                return transactionData.balance;
+                            }
+                        }
                     }
                 }
             }
