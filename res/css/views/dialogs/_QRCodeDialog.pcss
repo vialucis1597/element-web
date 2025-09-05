@@ -1,0 +1,67 @@
+/*
+Copyright 2024 New Vector Ltd.
+
+SPDX-License-Identifier: AGPL-3.0-only OR GPL-3.0-only OR LicenseRef-Element-Commercial
+Please see LICENSE files in the repository root for full details.
+*/
+
+.mx_QRCodeDialog {
+    width: 400px;
+    max-width: 90vw;
+
+    .mx_QRCodeDialog_title {
+        margin: 0;
+        font-weight: var(--cpd-font-weight-semibold);
+    }
+
+    .mx_QRCodeDialog_content {
+        padding: 24px;
+        text-align: center;
+    }
+
+    .mx_QRCodeDialog_qrContainer {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 20px;
+    }
+
+    .mx_QRCodeDialog_qrCode {
+        max-width: 300px;
+        max-height: 300px;
+        border: 1px solid var(--cpd-color-border-secondary);
+        border-radius: 8px;
+        padding: 16px;
+        background: #FFFFFF;
+    }
+
+    .mx_QRCodeDialog_info {
+        width: 100%;
+        max-width: 300px;
+    }
+
+    .mx_QRCodeDialog_label {
+        font-weight: var(--cpd-font-weight-semibold);
+        color: var(--cpd-color-text-secondary);
+        font-size: $font-14px;
+        margin: 0 0 8px 0;
+        text-align: left;
+    }
+
+    .mx_QRCodeDialog_address {
+        font-family: monospace;
+        font-size: $font-12px;
+        background: var(--cpd-color-bg-subtle-secondary);
+        padding: 12px;
+        border-radius: 4px;
+        word-break: break-all;
+        margin: 0 0 16px 0;
+        border: 1px solid var(--cpd-color-border-secondary);
+        color: var(--cpd-color-text-primary);
+        text-align: left;
+    }
+
+    .mx_QRCodeDialog_copyButton {
+        width: 100%;
+    }
+}

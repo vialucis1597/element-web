@@ -170,6 +170,17 @@ const DAOWalletSection: React.FC<Props> = ({ space }) => {
         }
     }, [walletData, daoId, daoName]);
 
+    const handleShowQRCode = useCallback(async () => {
+        if (!walletData) return;
+
+        const QRCodeDialog = await import("../dialogs/QRCodeDialog");
+        Modal.createDialog(QRCodeDialog.default, {
+            address: walletData.address,
+            daoName: daoName,
+            space: space,
+        });
+    }, [walletData, daoName, space]);
+
     const formatCurrency = (amount: number): string => {
         return new Intl.NumberFormat().format(amount);
     };
@@ -309,6 +320,17 @@ const DAOWalletSection: React.FC<Props> = ({ space }) => {
                         }}
                     >
                         Delete
+                    </a>
+
+                    <a
+                        href="#"
+                        className="mx_DAOWalletSection_actionLink"
+                        onClick={(e) => {
+                            e.preventDefault();
+                            handleShowQRCode();
+                        }}
+                    >
+                        QR
                     </a>
                 </div>
             </div>
