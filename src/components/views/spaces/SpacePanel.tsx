@@ -68,7 +68,6 @@ import { ThreadsActivityCentre } from "./threads-activity-centre/";
 import AccessibleButton from "../elements/AccessibleButton";
 import { Landmark, LandmarkNavigation } from "../../../accessibility/LandmarkNavigation";
 import { KeyboardShortcut } from "../settings/KeyboardShortcut";
-import DAOWalletPanel from "../wallet/DAOWalletPanel";
 
 const useSpaces = (): [Room[], MetaSpace[], Room[], SpaceKey] => {
     const invites = useEventEmitterState<Room[]>(SpaceStore.instance, UPDATE_INVITED_SPACES, () => {
@@ -352,7 +351,6 @@ const InnerSpacePanel = React.memo<IInnerSpacePanelProps>(
 const SpacePanel: React.FC = () => {
     const [dragging, setDragging] = useState(false);
     const [isPanelCollapsed, setPanelCollapsed] = useState(true);
-    const [showWalletPanel, setShowWalletPanel] = useState(false);
     const ref = useRef<HTMLDivElement>(null);
     useLayoutEffect(() => {
         if (ref.current) UIStore.instance.trackElementDimensions("SpacePanel", ref.current);
@@ -435,35 +433,11 @@ const SpacePanel: React.FC = () => {
 
                             <ThreadsActivityCentre displayButtonLabel={!isPanelCollapsed} />
 
-                            {/* DAO Wallet Button */}
-                            <div className="mx_SpacePanel_walletSection">
-                                <AccessibleButton
-                                    className={classNames("mx_SpacePanel_walletButton", {
-                                        collapsed: isPanelCollapsed,
-                                    })}
-                                    onClick={() => setShowWalletPanel(true)}
-                                    title="DAO 지갑"
-                                >
-                                    {!isPanelCollapsed && <span>💰 DAO 지갑</span>}
-                                    {isPanelCollapsed && <span>💰</span>}
-                                </AccessibleButton>
-                            </div>
-
                             <QuickSettingsButton isPanelCollapsed={isPanelCollapsed} />
                         </nav>
                     </DragDropContext>
                 )}
             </RovingTabIndexProvider>
-            
-            {/* DAO Wallet Panel Modal */}
-            {showWalletPanel && (
-                <div className="mx_SpacePanel_walletModal">
-                    <div className="mx_SpacePanel_walletModalBackdrop" onClick={() => setShowWalletPanel(false)} />
-                    <div className="mx_SpacePanel_walletModalContent">
-                        <DAOWalletPanel onClose={() => setShowWalletPanel(false)} />
-                    </div>
-                </div>
-            )}
         </>
     );
 };

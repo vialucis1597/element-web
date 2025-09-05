@@ -239,17 +239,36 @@ Please see LICENSE files in the repository root for full details.
     margin-bottom: 12px;
 }
 
-.mx_DAOWalletPanel_daoInfo .mx_DAOWalletPanel_daoName {
-    font-size: 16px;
-    font-weight: 600;
-    color: var(--cpd-color-text-primary);
-    margin-bottom: 4px;
-}
+.mx_DAOWalletPanel_daoInfo {
+    .mx_DAOWalletPanel_daoDisplay {
+        display: flex !important;
+        align-items: center !important;
+        gap: 12px !important;
 
-.mx_DAOWalletPanel_daoId {
-    font-size: 12px;
-    font-family: var(--cpd-font-family-mono);
-    color: var(--cpd-color-text-secondary);
+        .mx_DAOWalletPanel_daoAvatar {
+            border-radius: 50%;
+            margin-right: 8px !important;
+        }
+
+        .mx_DAOWalletPanel_daoText {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+            margin-left: 8px !important;
+
+            .mx_DAOWalletPanel_daoName {
+                font-size: 16px;
+                font-weight: 600;
+                color: var(--cpd-color-text-primary);
+            }
+
+            .mx_DAOWalletPanel_daoId {
+                font-size: 12px;
+                font-family: var(--cpd-font-family-mono);
+                color: var(--cpd-color-text-secondary);
+            }
+        }
+    }
 }
 
 .mx_DAOWalletPanel_walletActions {

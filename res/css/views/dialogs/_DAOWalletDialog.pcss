@@ -1,0 +1,47 @@
+/*
+Copyright 2024 New Vector Ltd.
+
+SPDX-License-Identifier: AGPL-3.0-only OR GPL-3.0-only OR LicenseRef-Element-Commercial
+Please see LICENSE files in the repository root for full details.
+*/
+
+.mx_DAOWalletDialog {
+    width: 90vw;
+    height: 90vh;
+    max-width: 1200px;
+    max-height: 800px;
+
+    .mx_DAOWalletDialog_title {
+        margin: 0;
+    }
+
+    .mx_DAOWalletDialog_content {
+        height: calc(100% - 60px); /* Account for header height */
+        overflow: auto;
+        padding: 0;
+
+        /* Remove the default close button from DAOWalletPanel since BaseDialog has its own */
+        .mx_DAOWalletPanel_closeButton {
+            display: none;
+        }
+
+        /* Adjust DAOWalletPanel to fit within dialog */
+        .mx_DAOWalletPanel {
+            height: 100%;
+            border: none;
+            border-radius: 0;
+            box-shadow: none;
+        }
+
+        .mx_DAOWalletPanel_header {
+            border-bottom: 1px solid var(--cpd-color-border-secondary);
+            padding: 16px 24px;
+        }
+
+        .mx_DAOWalletPanel_content {
+            padding: 24px;
+            height: calc(100% - 80px); /* Account for header */
+            overflow: auto;
+        }
+    }
+}

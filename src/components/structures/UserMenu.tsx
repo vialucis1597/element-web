@@ -258,6 +258,15 @@ export default class UserMenu extends React.Component<IProps, IState> {
         this.setState({ contextMenuPosition: null }); // also close the menu
     };
 
+    private onWalletClick = async (ev: ButtonEvent): Promise<void> => {
+        ev.preventDefault();
+        ev.stopPropagation();
+
+        const DAOWalletDialog = await import("../views/dialogs/DAOWalletDialog");
+        Modal.createDialog(DAOWalletDialog.default);
+        this.setState({ contextMenuPosition: null }); // close the menu
+    };
+
     private renderContextMenu = (): React.ReactNode => {
         if (!this.state.contextMenuPosition) return null;
 
@@ -336,6 +345,11 @@ export default class UserMenu extends React.Component<IProps, IState> {
                     iconClassName="mx_UserMenu_iconLock"
                     label={_t("room_settings|security|title")}
                     onClick={(e) => this.onSettingsOpen(e, UserTab.Security)}
+                />
+                <IconizedContextMenuOption
+                    iconClassName="mx_UserMenu_iconWallet"
+                    label="DAO 지갑 관리"
+                    onClick={this.onWalletClick}
                 />
                 <IconizedContextMenuOption
                     iconClassName="mx_UserMenu_iconSettings"

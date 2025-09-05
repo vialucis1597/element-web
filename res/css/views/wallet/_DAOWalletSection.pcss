@@ -1,0 +1,46 @@
+/*
+Copyright 2024 New Vector Ltd.
+
+SPDX-License-Identifier: AGPL-3.0-only OR GPL-3.0-only OR LicenseRef-Element-Commercial
+Please see LICENSE files in the repository root for full details.
+*/
+
+.mx_DAOWalletSection {
+    .mx_DAOWalletSection_header {
+        .mx_DAOWalletSection_title {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin: 0;
+            font-size: 16px;
+            font-weight: var(--cpd-font-weight-semibold);
+
+            .mx_DAOWalletSection_daoInfo {
+                display: flex !important;
+                align-items: center !important;
+                gap: 12px !important;
+                padding: 2px 8px;
+                background: var(--cpd-color-bg-canvas-default);
+                border: 1px solid var(--cpd-color-border-interactive-secondary);
+                border-radius: 12px;
+
+                .mx_DAOWalletSection_avatar {
+                    border-radius: 50%;
+                    margin-right: 8px !important;
+                }
+
+                .mx_DAOWalletSection_daoName {
+                    font-size: 14px;
+                    font-weight: var(--cpd-font-weight-medium);
+                    color: var(--cpd-color-text-primary);
+                    margin-left: 8px !important;
+                }
+            }
+
+            .mx_DAOWalletSection_titleSuffix {
+                color: var(--cpd-color-text-primary);
+                font-weight: var(--cpd-font-weight-semibold);
+            }
+        }
+    }
+}

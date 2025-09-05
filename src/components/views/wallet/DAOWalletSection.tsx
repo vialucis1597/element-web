@@ -1,9 +1,11 @@
 import React, { useState, useEffect, useCallback } from "react";
 import type { Room } from "matrix-js-sdk/src/matrix";
 import { _t } from "../../../languageHandler";
+import { MatrixClientPeg } from "../../../MatrixClientPeg";
 import AccessibleButton from "../elements/AccessibleButton";
 import Field from "../elements/Field";
 import Spinner from "../elements/Spinner";
+import BaseAvatar from "../avatars/BaseAvatar";
 import { DAOMnemonicWallet, type DAOWalletData, type DAOWalletSummary } from "../../../utils/DAOMnemonicWallet";
 import Modal from "../../../Modal";
 import InfoDialog from "../dialogs/InfoDialog";
@@ -248,7 +250,27 @@ const DAOWalletSection: React.FC<Props> = ({ space }) => {
     return (
         <div className="mx_DAOWalletSection">
             <div className="mx_DAOWalletSection_header">
-                <h3>DAO Wallet ({daoName} Network)</h3>
+                <h3 className="mx_DAOWalletSection_title">
+                    <div className="mx_DAOWalletSection_daoInfo">
+                        <BaseAvatar
+                            idName={daoId}
+                            name={daoName}
+                            url={(() => {
+                                try {
+                                    const client = MatrixClientPeg.safeGet();
+                                    return space.getAvatarUrl(client.mxcUrlToHttp.bind(client), 24, 24, "crop", false, false) || undefined;
+                                } catch (error) {
+                                    console.warn("Failed to get avatar URL:", error);
+                                    return undefined;
+                                }
+                            })()}
+                            size="24px"
+                            className="mx_DAOWalletSection_avatar"
+                        />
+                        <span className="mx_DAOWalletSection_daoName" style={{ marginLeft: "8px" }}>{daoName}</span>
+                    </div>
+                    <span className="mx_DAOWalletSection_titleSuffix">Network Wallet</span>
+                </h3>
             </div>
 
             <div className="mx_DAOWalletSection_walletInfo">
