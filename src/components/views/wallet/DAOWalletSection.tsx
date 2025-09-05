@@ -5,8 +5,11 @@ import AccessibleButton from "../elements/AccessibleButton";
 import Field from "../elements/Field";
 import Spinner from "../elements/Spinner";
 import { DAOMnemonicWallet, type DAOWalletData, type DAOWalletSummary } from "../../../utils/DAOMnemonicWallet";
+import { DAOContributionTracker } from "../../../utils/DAOContributionTracker";
 import Modal from "../../../Modal";
 import InfoDialog from "../dialogs/InfoDialog";
+import { MatrixClientPeg } from "../../../MatrixClientPeg";
+import SpaceStore from "../../../stores/spaces/SpaceStore";
 
 interface Props {
     space: Room;
@@ -35,28 +38,73 @@ const DAOWalletSection: React.FC<Props> = ({ space }) => {
 
     useEffect(() => {
         const existingWallet = wallet.getDAOWallet(daoId);
-        setWalletData(existingWallet);
+        
+        if (existingWallet) {
+            setWalletData(existingWallet);
+        } else {
+            // 현재 DAO에 지갑이 없지만 다른 DAO에 지갑이 있는 경우 자동 연결
+            const allWallets = wallet.getAllDAOWallets();
+            if (allWallets.length > 0) {
+                const firstWallet = wallet.getDAOWallet(allWallets[0].daoId);
+                if (firstWallet) {
+                    // 기존 지갑의 니모닉으로 현재 DAO에 지갑 생성
+                    wallet.createDAOWalletFromMnemonic(
+                        daoId,
+                        daoName,
+                        "B",
+                        1,
+                        firstWallet.mnemonic
+                    ).then((newWallet) => {
+                        setWalletData(newWallet);
+                        console.log(`Auto-connected wallet to ${daoName}`);
+                    }).catch((err) => {
+                        console.warn(`Failed to auto-connect wallet to ${daoName}:`, err);
+                    });
+                }
+            }
+        }
 
         wallet.addListener(handleWalletUpdate);
         return () => wallet.removeListener(handleWalletUpdate);
-    }, [daoId, wallet, handleWalletUpdate]);
+    }, [daoId, daoName, wallet, handleWalletUpdate]);
 
     const handleCreateNewWallet = useCallback(async () => {
         setIsLoading(true);
         setError(null);
 
         try {
+            // 먼저 현재 DAO에 지갑 생성
             const newWallet = await wallet.createDAOWallet(daoId, daoName);
             setWalletData(newWallet);
+
+            // 모든 다른 DAO에도 동일한 지갑 연결
+            const client = MatrixClientPeg.safeGet();
+            const allSpaces = SpaceStore.instance.spacePanelSpaces.filter(space => 
+                space.name && space.roomId.startsWith('!') && space.roomId !== daoId
+            );
+
+            for (const space of allSpaces) {
+                try {
+                    await wallet.createDAOWalletFromMnemonic(
+                        space.roomId,
+                        space.name,
+                        "B",
+                        1,
+                        newWallet.mnemonic
+                    );
+                } catch (err) {
+                    console.warn(`Failed to create wallet for ${space.name}:`, err);
+                }
+            }
             
             const backupData = `DAO: ${daoId}\nName: ${daoName}\nMnemonic: ${newWallet.mnemonic}\nAddress: ${newWallet.address}\n\n`;
             
             Modal.createDialog(InfoDialog, {
-                title: "DAO Wallet Created Successfully",
+                title: "지갑 생성 완료",
                 description: (
                     <div>
-                        <p><strong>Your {daoName} DAO wallet has been created!</strong></p>
-                        <p>Please keep the following information safe:</p>
+                        <p><strong>마이월렛이 생성되었습니다!</strong></p>
+                        <p>모든 DAO에서 동일한 지갑을 사용할 수 있습니다.</p>
                         <div style={{ 
                             backgroundColor: "#f5f5f5", 
                             padding: "15px", 
@@ -67,10 +115,8 @@ const DAOWalletSection: React.FC<Props> = ({ space }) => {
                             fontSize: "12px",
                             lineHeight: "1.4"
                         }}>
-                            <div><strong>DAO Address:</strong> {daoId}</div>
-                            <div><strong>DAO Name:</strong> {daoName}</div>
-                            <div><strong>Mnemonic:</strong> {newWallet.mnemonic}</div>
-                            <div><strong>Wallet Address:</strong> {newWallet.address}</div>
+                            <div><strong>지갑 주소:</strong> {newWallet.address}</div>
+                            <div><strong>니모닉:</strong> {newWallet.mnemonic}</div>
                         </div>
                         <div style={{ marginTop: "15px" }}>
                             <AccessibleButton
@@ -90,11 +136,13 @@ const DAOWalletSection: React.FC<Props> = ({ space }) => {
                                 Copy All Information
                             </AccessibleButton>
                         </div>
-                        <p><em>If you lose this information, you will not be able to restore your wallet.</em></p>
+                        <p><em>니모닉 문구를 안전한 곳에 보관하세요.</em></p>
                     </div>
                 ),
-                button: "OK"
+                button: "확인"
             });
+
+            DAOContributionTracker.getInstance().initialize();
         } catch (err) {
             setError(err instanceof Error ? err.message : "Failed to create wallet");
         } finally {
@@ -116,6 +164,7 @@ const DAOWalletSection: React.FC<Props> = ({ space }) => {
                 throw new Error("Invalid mnemonic phrase");
             }
 
+            // 현재 DAO에 지갑 복구
             const restoredWallet = await wallet.createDAOWalletFromMnemonic(
                 daoId, 
                 daoName, 
@@ -124,22 +173,45 @@ const DAOWalletSection: React.FC<Props> = ({ space }) => {
                 mnemonic.trim()
             );
             setWalletData(restoredWallet);
+
+            // 모든 다른 DAO에도 동일한 지갑 연결
+            const client = MatrixClientPeg.safeGet();
+            const allSpaces = SpaceStore.instance.spacePanelSpaces.filter(space => 
+                space.name && space.roomId.startsWith('!') && space.roomId !== daoId
+            );
+
+            for (const space of allSpaces) {
+                try {
+                    await wallet.createDAOWalletFromMnemonic(
+                        space.roomId,
+                        space.name,
+                        "B",
+                        1,
+                        mnemonic.trim()
+                    );
+                } catch (err) {
+                    console.warn(`Failed to restore wallet for ${space.name}:`, err);
+                }
+            }
             
             // 복구 성공 메시지 표시
             Modal.createDialog(InfoDialog, {
-                title: "DAO Wallet Restored Successfully",
+                title: "지갑 복구 완료",
                 description: (
                     <div>
-                        <p><strong>Your {daoName} DAO wallet has been restored!</strong></p>
-                        <p>Wallet Address: <code>{restoredWallet.address}</code></p>
-                        <p>Restored Balance: <strong>{restoredWallet.balance}B</strong></p>
+                        <p><strong>마이월렛이 복구되었습니다!</strong></p>
+                        <p>모든 DAO에서 동일한 지갑을 사용할 수 있습니다.</p>
+                        <p>지갑 주소: <code>{restoredWallet.address}</code></p>
+                        <p>복구된 잔액: <strong>{restoredWallet.balance}B</strong></p>
                         {restoredWallet.balance > 0 && (
-                            <p><em>Balance was recovered from existing transaction records in the ledger.</em></p>
+                            <p><em>원장에서 기존 거래 기록을 바탕으로 잔액을 복구했습니다.</em></p>
                         )}
                     </div>
                 ),
-                button: "OK"
+                button: "확인"
             });
+
+            DAOContributionTracker.getInstance().initialize();
             
             setShowMnemonicInput(false);
             setMnemonic("");
@@ -180,6 +252,39 @@ const DAOWalletSection: React.FC<Props> = ({ space }) => {
             space: space,
         });
     }, [walletData, daoName, space]);
+
+    const handleDeleteAllWallets = useCallback(() => {
+        if (!walletData) return;
+
+        const confirmed = confirm(
+            `정말로 마이월렛을 삭제하시겠습니까?\n\n모든 DAO의 지갑이 삭제되며, 니모닉 문구가 있어야만 복구할 수 있습니다.`
+        );
+
+        if (confirmed) {
+            try {
+                // 모든 DAO의 지갑 삭제
+                const allWallets = wallet.getAllDAOWallets();
+                allWallets.forEach(walletSummary => {
+                    wallet.deleteDAOWallet(walletSummary.daoId);
+                });
+
+                setWalletData(null);
+                
+                Modal.createDialog(InfoDialog, {
+                    title: "지갑 삭제 완료",
+                    description: "모든 DAO의 지갑이 삭제되었습니다. 니모닉 문구로 언제든지 복구할 수 있습니다.",
+                    button: "확인"
+                });
+            } catch (err) {
+                console.error("Failed to delete wallets:", err);
+                Modal.createDialog(InfoDialog, {
+                    title: "삭제 실패",
+                    description: "지갑 삭제 중 오류가 발생했습니다.",
+                    button: "확인"
+                });
+            }
+        }
+    }, [walletData, wallet]);
 
     const formatCurrency = (amount: number): string => {
         return new Intl.NumberFormat().format(amount);
@@ -259,7 +364,7 @@ const DAOWalletSection: React.FC<Props> = ({ space }) => {
     return (
         <div className="mx_DAOWalletSection">
             <div className="mx_DAOWalletSection_header">
-                <h3>DAO Wallet: {daoName} Network</h3>
+                <h3>Balance: {daoName} Network</h3>
             </div>
 
             <div className="mx_DAOWalletSection_walletInfo">
@@ -313,10 +418,7 @@ const DAOWalletSection: React.FC<Props> = ({ space }) => {
                         className="mx_DAOWalletSection_actionLink mx_DAOWalletSection_deleteLink"
                         onClick={(e) => {
                             e.preventDefault();
-                            if (confirm(`Are you sure you want to delete the ${daoName} DAO wallet? You will need the mnemonic phrase to restore it.`)) {
-                                wallet.deleteDAOWallet(daoId);
-                                setWalletData(null);
-                            }
+                            handleDeleteAllWallets();
                         }}
                     >
                         Delete

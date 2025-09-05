@@ -8,7 +8,7 @@ Please see LICENSE files in the repository root for full details.
 import React, { type JSX } from "react";
 
 import BaseDialog from "./BaseDialog";
-import DAOWalletPanel from "../wallet/DAOWalletPanel";
+import MyWalletPanel from "../wallet/MyWalletPanel";
 
 interface IProps {
     onFinished(): void;
@@ -20,11 +20,11 @@ export default function DAOWalletDialog(props: IProps): JSX.Element {
             className="mx_DAOWalletDialog"
             hasCancel={true}
             onFinished={props.onFinished}
-            title="DAO 지갑 관리"
+            title="마이월렛"
             titleClass="mx_DAOWalletDialog_title"
         >
             <div className="mx_DAOWalletDialog_content">
-                <DAOWalletPanel onClose={props.onFinished} />
+                <MyWalletPanel onClose={props.onFinished} />
             </div>
         </BaseDialog>
     );

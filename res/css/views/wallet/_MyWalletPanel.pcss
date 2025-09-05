@@ -1,0 +1,85 @@
+/*
+Copyright 2024 New Vector Ltd.
+
+SPDX-License-Identifier: AGPL-3.0-only OR GPL-3.0-only OR LicenseRef-Element-Commercial
+Please see LICENSE files in the repository root for full details.
+*/
+
+.mx_MyWalletPanel {
+    padding: 20px;
+    
+    .mx_MyWalletPanel_content {
+        .mx_MyWalletPanel_card,
+        .mx_MyWalletPanel_connectedCard {
+            border: 1px solid var(--cpd-color-border-secondary);
+            border-radius: 8px;
+            padding: 20px;
+            background: var(--cpd-color-bg-canvas-default);
+            text-align: center;
+
+            h3 {
+                margin: 0 0 8px 0;
+                font-size: $font-18px;
+                font-weight: var(--cpd-font-weight-semibold);
+                color: var(--cpd-color-text-primary);
+            }
+
+            p {
+                margin: 0 0 20px 0;
+                color: var(--cpd-color-text-secondary);
+                font-size: $font-14px;
+            }
+        }
+
+        .mx_MyWalletPanel_connectedCard {
+            background: var(--cpd-color-bg-success-subtle);
+            border-color: var(--cpd-color-border-success-subtle);
+
+            h3 {
+                color: var(--cpd-color-text-success-primary);
+            }
+
+            p {
+                color: var(--cpd-color-text-success-secondary);
+                margin-bottom: 0;
+            }
+        }
+
+        .mx_MyWalletPanel_createButton {
+            width: 100%;
+            margin-bottom: 12px;
+        }
+
+        .mx_MyWalletPanel_restoreButton {
+            color: var(--cpd-color-text-action-accent);
+            font-weight: var(--cpd-font-weight-medium);
+            text-decoration: underline;
+
+            &:hover {
+                text-decoration: none;
+            }
+        }
+
+        .mx_MyWalletPanel_error {
+            color: var(--cpd-color-text-critical-primary);
+            background: var(--cpd-color-bg-critical-subtle);
+            border: 1px solid var(--cpd-color-border-critical-subtle);
+            padding: 12px;
+            border-radius: 4px;
+            margin-bottom: 16px;
+            font-size: $font-14px;
+            text-align: left;
+        }
+
+        .mx_MyWalletPanel_restoreForm {
+            text-align: left;
+            margin-top: 16px;
+
+            .mx_MyWalletPanel_restoreActions {
+                display: flex;
+                gap: 12px;
+                margin-top: 16px;
+            }
+        }
+    }
+}

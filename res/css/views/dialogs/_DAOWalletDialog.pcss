@@ -16,32 +16,18 @@ Please see LICENSE files in the repository root for full details.
     }
 
     .mx_DAOWalletDialog_content {
-        height: calc(100% - 60px); /* Account for header height */
-        overflow: auto;
         padding: 0;
-
-        /* Remove the default close button from DAOWalletPanel since BaseDialog has its own */
-        .mx_DAOWalletPanel_closeButton {
+        
+        /* Remove the default close button from MyWalletPanel since BaseDialog has its own */
+        .mx_MyWalletPanel_closeButton {
             display: none;
         }
 
-        /* Adjust DAOWalletPanel to fit within dialog */
-        .mx_DAOWalletPanel {
-            height: 100%;
+        /* Adjust MyWalletPanel to fit within dialog */
+        .mx_MyWalletPanel {
             border: none;
             border-radius: 0;
             box-shadow: none;
-        }
-
-        .mx_DAOWalletPanel_header {
-            border-bottom: 1px solid var(--cpd-color-border-secondary);
-            padding: 16px 24px;
-        }
-
-        .mx_DAOWalletPanel_content {
-            padding: 24px;
-            height: calc(100% - 80px); /* Account for header */
-            overflow: auto;
         }
     }
 }
