@@ -25,6 +25,8 @@ interface Props {
 
 const MyWalletPanel: React.FC<Props> = ({ onClose }) => {
     const [hasWallet, setHasWallet] = useState(false);
+    const [walletData, setWalletData] = useState<any>(null);
+    const [walletSummaries, setWalletSummaries] = useState<DAOWalletSummary[]>([]);
     const [mnemonic, setMnemonic] = useState("");
     const [showMnemonicInput, setShowMnemonicInput] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
@@ -34,12 +36,30 @@ const MyWalletPanel: React.FC<Props> = ({ onClose }) => {
     const wallet = DAOMnemonicWallet.getInstance();
 
     const handleWalletUpdate = useCallback((newWalletSummaries: DAOWalletSummary[]) => {
+        setWalletSummaries(newWalletSummaries);
         setHasWallet(newWalletSummaries.length > 0);
-    }, []);
+        
+        // 첫 번째 지갑의 정보를 메인 지갑으로 사용 (모든 지갑이 동일하므로)
+        if (newWalletSummaries.length > 0) {
+            const firstWalletId = newWalletSummaries[0].daoId;
+            const mainWallet = wallet.getDAOWallet(firstWalletId);
+            setWalletData(mainWallet);
+        } else {
+            setWalletData(null);
+        }
+    }, [wallet]);
 
     useEffect(() => {
         const existingWallets = wallet.getAllDAOWallets();
+        setWalletSummaries(existingWallets);
         setHasWallet(existingWallets.length > 0);
+
+        // 첫 번째 지갑의 정보를 메인 지갑으로 사용
+        if (existingWallets.length > 0) {
+            const firstWalletId = existingWallets[0].daoId;
+            const mainWallet = wallet.getDAOWallet(firstWalletId);
+            setWalletData(mainWallet);
+        }
 
         // Get all DAO spaces
         const client = MatrixClientPeg.safeGet();
@@ -164,13 +184,167 @@ const MyWalletPanel: React.FC<Props> = ({ onClose }) => {
         }
     }, [wallet, mnemonic, allSpaces]);
 
+    const handleExportWallet = useCallback(() => {
+        try {
+            if (!walletData) {
+                throw new Error("지갑 정보를 찾을 수 없습니다");
+            }
+
+            const exportData = `My Wallet Backup\nAddress: ${walletData.address}\nMnemonic: ${walletData.mnemonic}\n\n`;
+            
+            const blob = new Blob([exportData], { type: "text/plain; charset=utf-8" });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement("a");
+            a.href = url;
+            a.download = `my-wallet-backup-${new Date().toISOString().split('T')[0]}.txt`;
+            a.click();
+            URL.revokeObjectURL(url);
+        } catch (err) {
+            console.error("Failed to export wallet:", err);
+        }
+    }, [walletData]);
+
+    const handleDeleteAllWallets = useCallback(() => {
+        if (!walletData) return;
+
+        const confirmed = confirm(
+            `정말로 마이월렛을 삭제하시겠습니까?\n\n모든 DAO의 지갑이 삭제되며, 니모닉 문구가 있어야만 복구할 수 있습니다.`
+        );
+
+        if (confirmed) {
+            try {
+                // 모든 DAO의 지갑 삭제
+                const allWallets = wallet.getAllDAOWallets();
+                allWallets.forEach(walletSummary => {
+                    wallet.deleteDAOWallet(walletSummary.daoId);
+                });
+
+                setWalletData(null);
+                setWalletSummaries([]);
+                setHasWallet(false);
+                
+                Modal.createDialog(InfoDialog, {
+                    title: "지갑 삭제 완료",
+                    description: "모든 DAO의 지갑이 삭제되었습니다. 니모닉 문구로 언제든지 복구할 수 있습니다.",
+                    button: "확인"
+                });
+            } catch (err) {
+                console.error("Failed to delete wallets:", err);
+            }
+        }
+    }, [walletData, wallet]);
+
+    const handleShowQRCode = useCallback(async () => {
+        if (!walletData) return;
+
+        const QRCodeDialog = await import("../dialogs/QRCodeDialog");
+        Modal.createDialog(QRCodeDialog.default, {
+            address: walletData.address,
+            daoName: "My Wallet",
+            space: null,
+        });
+    }, [walletData]);
+
+    const formatCurrency = (amount: number): string => {
+        return new Intl.NumberFormat().format(amount);
+    };
+
+    const renderWalletInfo = () => {
+        if (!walletData) return null;
+
+        return (
+            <div className="mx_MyWalletPanel_walletInfo">
+                <h3>MY Wallet</h3>
+                <div className="mx_MyWalletPanel_address">
+                    <span className="mx_MyWalletPanel_label">Address</span>
+                    <div className="mx_MyWalletPanel_addressRow">
+                        <div className="mx_MyWalletPanel_addressValue">
+                            {walletData.address}
+                        </div>
+                        <a
+                            href="#"
+                            className="mx_MyWalletPanel_copyLink"
+                            onClick={(e) => {
+                                e.preventDefault();
+                                navigator.clipboard.writeText(walletData.address);
+                                const element = e.currentTarget as HTMLElement;
+                                const originalText = element.textContent;
+                                element.textContent = "복사됨!";
+                                setTimeout(() => {
+                                    element.textContent = originalText;
+                                }, 1000);
+                            }}
+                        >
+                            Copy
+                        </a>
+                    </div>
+                </div>
+                
+                <div className="mx_MyWalletPanel_actions">
+                    <a
+                        href="#"
+                        className="mx_MyWalletPanel_actionLink"
+                        onClick={(e) => {
+                            e.preventDefault();
+                            handleExportWallet();
+                        }}
+                    >
+                        Backup
+                    </a>
+                    <a
+                        href="#"
+                        className="mx_MyWalletPanel_actionLink mx_MyWalletPanel_deleteLink"
+                        onClick={(e) => {
+                            e.preventDefault();
+                            handleDeleteAllWallets();
+                        }}
+                    >
+                        Delete
+                    </a>
+                    <a
+                        href="#"
+                        className="mx_MyWalletPanel_actionLink"
+                        onClick={(e) => {
+                            e.preventDefault();
+                            handleShowQRCode();
+                        }}
+                    >
+                        QR
+                    </a>
+                </div>
+            </div>
+        );
+    };
+
+    const renderBalanceCards = () => {
+        if (walletSummaries.length === 0) return null;
+
+        return (
+            <div className="mx_MyWalletPanel_balanceList">
+                <h4>DAO Balance</h4>
+                {walletSummaries.map((summary) => (
+                    <div key={summary.daoId} className="mx_MyWalletPanel_balanceCard">
+                        <div className="mx_MyWalletPanel_balanceHeader">
+                            <div className="mx_MyWalletPanel_daoInfo">
+                                <div className="mx_MyWalletPanel_daoName">{summary.daoName} Network</div>
+                            </div>
+                            <div className="mx_MyWalletPanel_balanceAmount">
+                                {formatCurrency(summary.balance)} {summary.currency}
+                            </div>
+                        </div>
+                    </div>
+                ))}
+            </div>
+        );
+    };
+
     const renderContent = () => {
         if (hasWallet) {
             return (
-                <div className="mx_MyWalletPanel_connectedCard">
-                    <h3>마이월렛</h3>
-                    <p>지갑이 연결되었습니다. 각 DAO에서 잔액을 확인하세요.</p>
-                </div>
+                <>
+                    {renderWalletInfo()}
+                    {renderBalanceCards()}
+                </>
             );
         }
 
