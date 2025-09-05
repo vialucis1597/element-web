@@ -43,17 +43,62 @@ export default function SendTokenDialog(props: IProps): JSX.Element {
             if (!file) return;
 
             try {
-                // QR 코드 읽기 구현 (여기서는 임시로 파일명을 주소로 사용)
+                console.log("📷 QR Image uploaded, processing...");
+                
+                // Create image element
+                const img = new Image();
+                const canvas = document.createElement('canvas');
+                const ctx = canvas.getContext('2d');
+                
+                img.onload = async () => {
+                    try {
+                        // Set canvas size to match image
+                        canvas.width = img.width;
+                        canvas.height = img.height;
+                        
+                        // Draw image on canvas
+                        ctx?.drawImage(img, 0, 0);
+                        
+                        // Get image data
+                        const imageData = ctx?.getImageData(0, 0, canvas.width, canvas.height);
+                        
+                        if (imageData) {
+                            try {
+                                // Try to use jsQR library if available
+                                const jsQR = await import('jsqr');
+                                const code = jsQR.default(imageData.data, imageData.width, imageData.height);
+                                
+                                if (code) {
+                                    console.log("✅ QR Code decoded:", code.data);
+                                    setRecipientAddress(code.data);
+                                    setError(null);
+                                } else {
+                                    console.warn("❌ No QR code found in image");
+                                    setError("No QR code found in the uploaded image");
+                                }
+                            } catch (importError) {
+                                console.warn("jsQR library not available, using fallback");
+                                // Fallback: For demo purposes, just show that QR was uploaded
+                                setError("QR code processing requires additional library. Please manually enter the address.");
+                                console.log("📷 QR image uploaded but automatic parsing not available");
+                            }
+                        }
+                    } catch (decodeError) {
+                        console.error("Failed to decode QR code:", decodeError);
+                        setError("Failed to decode QR code from image");
+                    }
+                };
+                
+                // Load image from file
                 const reader = new FileReader();
                 reader.onload = (event) => {
-                    // 실제로는 QR 코드 라이브러리를 사용해야 함
-                    // 임시로 파일 내용을 주소로 설정
-                    console.log("QR Image uploaded, processing...");
-                    // setRecipientAddress("0x..."); // QR에서 추출한 주소
+                    img.src = event.target?.result as string;
                 };
                 reader.readAsDataURL(file);
+                
             } catch (err) {
                 console.error("Failed to process QR code:", err);
+                setError("Failed to process uploaded image");
             }
         };
         input.click();
