@@ -316,6 +316,18 @@ const DAOWalletSection: React.FC<Props> = ({ space }) => {
         });
     }, [walletData, daoId, daoName]);
 
+    const handleHistoryClick = useCallback(async () => {
+        if (!walletData) return;
+        
+        console.log(`📜 Opening transaction history for ${daoName}`);
+        const TransactionHistoryDialog = await import("../dialogs/TransactionHistoryDialog");
+        Modal.createDialog(TransactionHistoryDialog.default, {
+            daoId: daoId,
+            daoName: daoName,
+            walletAddress: walletData.address,
+        });
+    }, [walletData, daoId, daoName]);
+
     if (!walletData) {
         return (
             <div className="mx_DAOWalletSection">
@@ -425,15 +437,6 @@ const DAOWalletSection: React.FC<Props> = ({ space }) => {
                     <div className="mx_DAOWalletSection_balanceValue">
                         {formatCurrency(walletData.balance)} {walletData.currency}
                     </div>
-                    <div className="mx_DAOWalletSection_sendButtonContainer">
-                        <AccessibleButton
-                            kind="primary"
-                            className="mx_DAOWalletSection_sendButton"
-                            onClick={handleSendClick}
-                        >
-                            Send
-                        </AccessibleButton>
-                    </div>
                 </div>
 
                 <div className="mx_DAOWalletSection_actions">
@@ -469,6 +472,23 @@ const DAOWalletSection: React.FC<Props> = ({ space }) => {
                     >
                         QR
                     </a>
+
+                    <AccessibleButton
+                        kind="secondary"
+                        className="mx_DAOWalletSection_historyButton"
+                        onClick={handleHistoryClick}
+                        style={{ marginLeft: "auto", marginRight: "8px" }}
+                    >
+                        History
+                    </AccessibleButton>
+
+                    <AccessibleButton
+                        kind="primary"
+                        className="mx_DAOWalletSection_sendButton"
+                        onClick={handleSendClick}
+                    >
+                        Send
+                    </AccessibleButton>
                 </div>
             </div>
         </div>

@@ -1,0 +1,119 @@
+/*
+Copyright 2024 New Vector Ltd.
+
+SPDX-License-Identifier: AGPL-3.0-only OR GPL-3.0-only OR LicenseRef-Element-Commercial
+Please see LICENSE files in the repository root for full details.
+*/
+
+.mx_TransactionHistoryDialog {
+    .mx_TransactionHistoryDialog_content {
+        padding: 20px;
+        max-height: 600px;
+        min-width: 800px;
+    }
+
+    .mx_TransactionHistoryDialog_loading {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        padding: 40px;
+        
+        p {
+            margin-top: 16px;
+            color: var(--cpd-color-text-secondary);
+        }
+    }
+
+    .mx_TransactionHistoryDialog_error {
+        padding: 20px;
+        text-align: center;
+        color: var(--cpd-color-text-critical-primary);
+        background-color: var(--cpd-color-bg-critical-subtle);
+        border-radius: 8px;
+        margin: 16px 0;
+    }
+
+    .mx_TransactionHistoryDialog_empty {
+        padding: 40px;
+        text-align: center;
+        color: var(--cpd-color-text-secondary);
+    }
+
+    .mx_TransactionHistoryDialog_transactions {
+        .mx_TransactionHistoryDialog_list {
+            border: 1px solid var(--cpd-color-border-secondary);
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        .mx_TransactionHistoryDialog_header {
+            display: grid;
+            grid-template-columns: 80px 150px 80px 80px 140px 120px;
+            background-color: var(--cpd-color-bg-subtle-secondary);
+            border-bottom: 1px solid var(--cpd-color-border-secondary);
+            
+            .mx_TransactionHistoryDialog_headerCell {
+                padding: 12px 8px;
+                font-weight: 600;
+                color: var(--cpd-color-text-primary);
+                font-size: 12px;
+                text-transform: uppercase;
+                letter-spacing: 0.5px;
+            }
+        }
+
+        .mx_TransactionHistoryDialog_row {
+            display: grid;
+            grid-template-columns: 80px 150px 80px 80px 140px 120px;
+            border-bottom: 1px solid var(--cpd-color-border-tertiary);
+            
+            &:hover {
+                background-color: var(--cpd-color-bg-subtle-primary);
+            }
+            
+            &:last-child {
+                border-bottom: none;
+            }
+            
+            .mx_TransactionHistoryDialog_cell {
+                padding: 12px 8px;
+                display: flex;
+                align-items: center;
+                font-size: 13px;
+                color: var(--cpd-color-text-primary);
+                word-break: break-all;
+            }
+        }
+
+        .mx_TransactionHistoryDialog_type {
+            font-weight: 600;
+            text-transform: uppercase;
+            font-size: 11px;
+            padding: 2px 6px;
+            border-radius: 4px;
+            background-color: rgba(0, 0, 0, 0.1);
+        }
+
+        .mx_TransactionHistoryDialog_amount {
+            font-weight: 600;
+            font-family: monospace;
+        }
+
+        .mx_TransactionHistoryDialog_balance {
+            font-weight: 500;
+            font-family: monospace;
+            color: var(--cpd-color-text-success-primary);
+        }
+
+        .mx_TransactionHistoryDialog_date {
+            font-size: 11px;
+            color: var(--cpd-color-text-secondary);
+        }
+
+        .mx_TransactionHistoryDialog_hash {
+            font-family: monospace;
+            font-size: 11px;
+            color: var(--cpd-color-text-secondary);
+        }
+    }
+}
