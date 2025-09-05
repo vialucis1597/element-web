@@ -124,15 +124,21 @@ export class DAOMnemonicWallet {
     }
 
     updateDAOWalletBalance(daoId: string, newBalance: number): boolean {
+        console.log(`🎯 updateDAOWalletBalance called for ${daoId} with balance: ${newBalance}`);
         const wallet = this.daoWallets.get(daoId);
-        if (!wallet) return false;
+        if (!wallet) {
+            console.error(`❌ No wallet found for daoId: ${daoId}`);
+            return false;
+        }
 
+        const oldBalance = wallet.balance;
         wallet.balance = newBalance;
+        
+        console.log(`💰 Balance updated for ${wallet.daoName}: ${oldBalance} → ${newBalance} ${wallet.currency}`);
         
         this.saveWalletsToStorage();
         this.notifyListeners();
         
-        console.log(`💰 Updated balance for ${wallet.daoName}: ${newBalance} ${wallet.currency}`);
         return true;
     }
 
@@ -262,7 +268,40 @@ export class DAOMnemonicWallet {
 
     notifyListeners(): void {
         const summaries = this.getAllDAOWallets();
-        this.listeners.forEach(listener => listener(summaries));
+        console.log(`🔔 DAOMnemonicWallet: Notifying ${this.listeners.length} listeners with:`, summaries);
+        this.listeners.forEach((listener, index) => {
+            try {
+                console.log(`📡 DAOMnemonicWallet: Calling listener ${index + 1}`);
+                listener(summaries);
+            } catch (error) {
+                console.error(`❌ DAOMnemonicWallet: Listener ${index + 1} failed:`, error);
+            }
+        });
+        console.log(`✅ DAOMnemonicWallet: All listeners notified`);
+    }
+
+    async refreshDAOWalletBalance(daoId: string): Promise<boolean> {
+        const wallet = this.daoWallets.get(daoId);
+        if (!wallet) return false;
+
+        try {
+            console.log(`🔄 Refreshing balance for ${wallet.daoName} from ledger`);
+            const refreshedBalance = await this.recoverBalanceFromLedger(daoId, wallet.address);
+            
+            if (refreshedBalance !== wallet.balance) {
+                console.log(`💰 Balance updated: ${wallet.balance}B → ${refreshedBalance}B`);
+                wallet.balance = refreshedBalance;
+                this.saveWalletsToStorage();
+                this.notifyListeners();
+                return true;
+            }
+            
+            console.log(`💰 Balance unchanged: ${wallet.balance}B`);
+            return false;
+        } catch (error) {
+            console.error(`Failed to refresh balance for ${wallet.daoName}:`, error);
+            return false;
+        }
     }
 
     clearAllWallets(): void {

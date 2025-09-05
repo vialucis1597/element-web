@@ -81,17 +81,27 @@ export default function SendTokenDialog(props: IProps): JSX.Element {
         try {
             await sendTransaction();
             
-            // Trigger balance refresh for all wallet components
-            setTimeout(() => {
-                // Force wallet update by triggering a wallet event
-                const walletInstance = DAOMnemonicWallet.getInstance();
-                walletInstance.notifyListeners(); // Force notification to update all wallet displays
-            }, 100);
-            
             Modal.createDialog(InfoDialog, {
                 title: "Transaction Sent",
                 description: `Successfully sent ${amount} ${props.currency} to ${recipientAddress}`,
-                button: "OK"
+                button: "OK",
+                onFinished: () => {
+                    console.log("🔄 OK button clicked - forcing wallet refresh");
+                    // Force immediate wallet update
+                    const walletInstance = DAOMnemonicWallet.getInstance();
+                    walletInstance.notifyListeners();
+                    
+                    // Also force refresh from ledger
+                    setTimeout(async () => {
+                        try {
+                            console.log(`🔄 Force refreshing balance from ledger for DAO: ${props.daoId}`);
+                            await walletInstance.refreshDAOWalletBalance(props.daoId);
+                            console.log("✅ Balance refresh completed");
+                        } catch (error) {
+                            console.warn("Failed to refresh balance:", error);
+                        }
+                    }, 100);
+                }
             });
 
             props.onFinished();
@@ -196,6 +206,16 @@ export default function SendTokenDialog(props: IProps): JSX.Element {
 
         console.log(`💸 Transaction sent: ${senderAmount}B from ${props.senderAddress} to ${recipientAddr}`);
         console.log(`💰 New balances - Sender: ${senderNewBalance}B, Recipient: ${recipientNewBalance}B`);
+
+        // Force refresh balance from ledger after a short delay to ensure transaction is processed
+        setTimeout(async () => {
+            try {
+                console.log(`🔄 Refreshing balance from ledger for ${props.senderAddress}`);
+                await wallet.refreshDAOWalletBalance(props.daoId);
+            } catch (error) {
+                console.warn("Failed to refresh balance from ledger:", error);
+            }
+        }, 500);
     };
 
     const getRecipientCurrentBalance = async (ledgerRoom: any, recipientAddress: string): Promise<number> => {

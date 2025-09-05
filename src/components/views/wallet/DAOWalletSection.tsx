@@ -27,14 +27,25 @@ const DAOWalletSection: React.FC<Props> = ({ space }) => {
     const daoName = space.name;
 
     const handleWalletUpdate = useCallback((wallets: DAOWalletSummary[]) => {
+        console.log(`🔄 DAOWalletSection: Wallet update received for ${daoName}`, wallets);
         const currentWallet = wallets.find(w => w.daoId === daoId);
         if (currentWallet) {
+            // Force fresh fetch from wallet with immediate state update
             const fullWallet = wallet.getDAOWallet(daoId);
-            setWalletData(fullWallet);
+            console.log(`💰 DAOWalletSection: Updated wallet data for ${daoName}:`, fullWallet);
+            console.log(`💰 DAOWalletSection: Current balance: ${fullWallet?.balance}B`);
+            
+            // Force re-render by setting to null first, then to new data
+            setWalletData(null);
+            setTimeout(() => {
+                setWalletData(fullWallet);
+                console.log(`✅ DAOWalletSection: State updated for ${daoName}`);
+            }, 10);
         } else {
+            console.log(`❌ DAOWalletSection: No wallet found for ${daoName}`);
             setWalletData(null);
         }
-    }, [daoId, wallet]);
+    }, [daoId, daoName, wallet]);
 
     useEffect(() => {
         const existingWallet = wallet.getDAOWallet(daoId);
