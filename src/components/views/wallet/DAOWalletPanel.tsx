@@ -1,10 +1,8 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { _t } from "../../../languageHandler";
-import { MatrixClientPeg } from "../../../MatrixClientPeg";
 import AccessibleButton from "../elements/AccessibleButton";
 import Field from "../elements/Field";
 import Spinner from "../elements/Spinner";
-import BaseAvatar from "../avatars/BaseAvatar";
 import { DAOMnemonicWallet, type DAOWalletSummary } from "../../../utils/DAOMnemonicWallet";
 import { DAOContributionTracker } from "../../../utils/DAOContributionTracker";
 import Modal from "../../../Modal";
@@ -225,35 +223,13 @@ const DAOWalletPanel: React.FC<Props> = ({ onClose }) => {
         return (
             <div className="mx_DAOWalletPanel_walletList">
                 <h4>DAO별 지갑</h4>
-                {walletSummaries.map((summary) => {
-                    let avatarUrl: string | undefined;
-                    try {
-                        const client = MatrixClientPeg.safeGet();
-                        const room = client.getRoom(summary.daoId);
-                        avatarUrl = room?.getAvatarUrl(client.mxcUrlToHttp.bind(client), 32, 32, "crop", false, false) || undefined;
-                    } catch (error) {
-                        console.warn("Failed to get avatar URL for", summary.daoId, error);
-                        avatarUrl = undefined;
-                    }
-                    
-                    return (
-                        <div key={summary.daoId} className="mx_DAOWalletPanel_walletItem">
-                            <div className="mx_DAOWalletPanel_walletHeader">
-                                <div className="mx_DAOWalletPanel_daoInfo">
-                                    <div className="mx_DAOWalletPanel_daoDisplay">
-                                        <BaseAvatar
-                                            idName={summary.daoId}
-                                            name={summary.daoName}
-                                            url={avatarUrl}
-                                            size="32px"
-                                            className="mx_DAOWalletPanel_daoAvatar"
-                                        />
-                                        <div className="mx_DAOWalletPanel_daoText" style={{ marginLeft: "8px" }}>
-                                            <div className="mx_DAOWalletPanel_daoName">{summary.daoName}</div>
-                                            <div className="mx_DAOWalletPanel_daoId">{summary.daoId.substring(0, 8)}...</div>
-                                        </div>
-                                    </div>
-                                </div>
+                {walletSummaries.map((summary) => (
+                    <div key={summary.daoId} className="mx_DAOWalletPanel_walletItem">
+                        <div className="mx_DAOWalletPanel_walletHeader">
+                            <div className="mx_DAOWalletPanel_daoInfo">
+                                <div className="mx_DAOWalletPanel_daoName">{summary.daoName}</div>
+                                <div className="mx_DAOWalletPanel_daoId">{summary.daoId.substring(0, 8)}...</div>
+                            </div>
                             <div className="mx_DAOWalletPanel_walletActions">
                                 <AccessibleButton
                                     kind="secondary"
@@ -288,8 +264,7 @@ const DAOWalletPanel: React.FC<Props> = ({ onClose }) => {
 
                         </div>
                     </div>
-                    );
-                })}
+                ))}
             </div>
         );
     };
