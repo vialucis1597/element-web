@@ -262,6 +262,63 @@ export class DAOMnemonicWallet {
         return Array.from(this.daoWallets.values()).reduce((total, wallet) => total + wallet.balance, 0);
     }
 
+    // 프로토콜상 존재하는 모든 DAO에 대한 잔액 조회 (클라이언트에 없는 DAO 포함)
+    async getAllProtocolDAOBalances(): Promise<DAOWalletSummary[]> {
+        try {
+            console.log("🔍 Starting getAllProtocolDAOBalances...");
+            const client = MatrixClientPeg.safeGet();
+            const allSpaces = client.getRooms().filter(room => 
+                room.isSpaceRoom() && 
+                room.name && 
+                room.roomId.startsWith('!')
+            );
+
+            console.log(`🌐 Found ${allSpaces.length} spaces:`, allSpaces.map(s => s.name));
+
+            const balances: DAOWalletSummary[] = [];
+            
+            // 이미 생성된 지갑이 있다면 그 주소를 사용
+            const existingWallets = this.getAllDAOWallets();
+            if (existingWallets.length === 0) {
+                console.log("❌ No existing wallets found");
+                return []; // 지갑이 없으면 빈 배열 반환
+            }
+
+            const mainWalletAddress = existingWallets[0].address;
+            console.log(`💰 Using wallet address: ${mainWalletAddress}`);
+
+            for (const space of allSpaces) {
+                try {
+                    console.log(`🔍 Checking balance for DAO: ${space.name} (${space.roomId})`);
+                    const balance = await this.recoverBalanceFromLedger(space.roomId, mainWalletAddress);
+                    console.log(`💰 Balance for ${space.name}: ${balance}B`);
+                    
+                    if (balance > 0) { // 잔액이 있는 DAO만 추가
+                        balances.push({
+                            daoId: space.roomId,
+                            daoName: space.name,
+                            address: mainWalletAddress,
+                            currency: "B",
+                            balance: balance,
+                            contributionValue: 1
+                        });
+                        console.log(`✅ Added ${space.name} with ${balance}B to balance list`);
+                    } else {
+                        console.log(`⏭️ Skipping ${space.name} (0 balance)`);
+                    }
+                } catch (error) {
+                    console.warn(`⚠️ Failed to check balance for DAO ${space.name}:`, error);
+                }
+            }
+
+            console.log(`📊 Final balances found: ${balances.length}`, balances);
+            return balances.sort((a, b) => b.balance - a.balance); // 잔액 많은 순으로 정렬
+        } catch (error) {
+            console.error("❌ Error getting all protocol DAO balances:", error);
+            return this.getAllDAOWallets(); // 실패시 기존 지갑만 반환
+        }
+    }
+
     // 원장에서 지갑 주소의 최신 잔액 복구
     private async recoverBalanceFromLedger(daoId: string, walletAddress: string): Promise<number> {
         try {

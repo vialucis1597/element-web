@@ -35,8 +35,7 @@ const MyWalletPanel: React.FC<Props> = ({ onClose }) => {
 
     const wallet = DAOMnemonicWallet.getInstance();
 
-    const handleWalletUpdate = useCallback((newWalletSummaries: DAOWalletSummary[]) => {
-        setWalletSummaries(newWalletSummaries);
+    const handleWalletUpdate = useCallback(async (newWalletSummaries: DAOWalletSummary[]) => {
         setHasWallet(newWalletSummaries.length > 0);
         
         // 첫 번째 지갑의 정보를 메인 지갑으로 사용 (모든 지갑이 동일하므로)
@@ -44,29 +43,57 @@ const MyWalletPanel: React.FC<Props> = ({ onClose }) => {
             const firstWalletId = newWalletSummaries[0].daoId;
             const mainWallet = wallet.getDAOWallet(firstWalletId);
             setWalletData(mainWallet);
+            
+            // 모든 프로토콜 DAO 잔액 조회
+            try {
+                console.log("🔄 MyWalletPanel: Updating wallet summaries...");
+                const allBalances = await wallet.getAllProtocolDAOBalances();
+                console.log("📊 MyWalletPanel: Received balances:", allBalances);
+                setWalletSummaries(allBalances);
+            } catch (error) {
+                console.error("❌ MyWalletPanel: Failed to get all protocol DAO balances:", error);
+                setWalletSummaries(newWalletSummaries);
+            }
         } else {
             setWalletData(null);
+            setWalletSummaries([]);
         }
     }, [wallet]);
 
     useEffect(() => {
-        const existingWallets = wallet.getAllDAOWallets();
-        setWalletSummaries(existingWallets);
-        setHasWallet(existingWallets.length > 0);
+        const initializeWallet = async () => {
+            const existingWallets = wallet.getAllDAOWallets();
+            setHasWallet(existingWallets.length > 0);
 
-        // 첫 번째 지갑의 정보를 메인 지갑으로 사용
-        if (existingWallets.length > 0) {
-            const firstWalletId = existingWallets[0].daoId;
-            const mainWallet = wallet.getDAOWallet(firstWalletId);
-            setWalletData(mainWallet);
-        }
+            // 첫 번째 지갑의 정보를 메인 지갑으로 사용
+            if (existingWallets.length > 0) {
+                const firstWalletId = existingWallets[0].daoId;
+                const mainWallet = wallet.getDAOWallet(firstWalletId);
+                setWalletData(mainWallet);
+                
+                // 모든 프로토콜 DAO 잔액 조회
+                try {
+                    console.log("🏁 MyWalletPanel: Initial load - getting all protocol DAO balances...");
+                    const allBalances = await wallet.getAllProtocolDAOBalances();
+                    console.log("📊 MyWalletPanel: Initial load - received balances:", allBalances);
+                    setWalletSummaries(allBalances);
+                } catch (error) {
+                    console.error("❌ MyWalletPanel: Initial load - failed to get all protocol DAO balances:", error);
+                    setWalletSummaries(existingWallets);
+                }
+            } else {
+                setWalletSummaries([]);
+            }
 
-        // Get all DAO spaces
-        const client = MatrixClientPeg.safeGet();
-        const spaces = SpaceStore.instance.spacePanelSpaces.filter(space => 
-            space.name && space.roomId.startsWith('!')
-        );
-        setAllSpaces(spaces);
+            // Get all DAO spaces
+            const client = MatrixClientPeg.safeGet();
+            const spaces = SpaceStore.instance.spacePanelSpaces.filter(space => 
+                space.name && space.roomId.startsWith('!')
+            );
+            setAllSpaces(spaces);
+        };
+
+        initializeWallet();
 
         wallet.addListener(handleWalletUpdate);
         return () => wallet.removeListener(handleWalletUpdate);
@@ -124,6 +151,14 @@ const MyWalletPanel: React.FC<Props> = ({ onClose }) => {
             });
 
             DAOContributionTracker.getInstance().initialize();
+            
+            // 모든 프로토콜 DAO 잔액 업데이트
+            try {
+                const allBalances = await wallet.getAllProtocolDAOBalances();
+                setWalletSummaries(allBalances);
+            } catch (error) {
+                console.error("Failed to update all protocol DAO balances:", error);
+            }
         } catch (err) {
             setError(err instanceof Error ? err.message : "지갑 생성 실패");
         } finally {
@@ -174,6 +209,14 @@ const MyWalletPanel: React.FC<Props> = ({ onClose }) => {
             });
 
             DAOContributionTracker.getInstance().initialize();
+            
+            // 모든 프로토콜 DAO 잔액 업데이트
+            try {
+                const allBalances = await wallet.getAllProtocolDAOBalances();
+                setWalletSummaries(allBalances);
+            } catch (error) {
+                console.error("Failed to update all protocol DAO balances:", error);
+            }
             
             setShowMnemonicInput(false);
             setMnemonic("");
@@ -254,7 +297,6 @@ const MyWalletPanel: React.FC<Props> = ({ onClose }) => {
 
         return (
             <div className="mx_MyWalletPanel_walletInfo">
-                <h3>MY Wallet</h3>
                 <div className="mx_MyWalletPanel_address">
                     <span className="mx_MyWalletPanel_label">Address</span>
                     <div className="mx_MyWalletPanel_addressRow">
@@ -317,23 +359,30 @@ const MyWalletPanel: React.FC<Props> = ({ onClose }) => {
     };
 
     const renderBalanceCards = () => {
-        if (walletSummaries.length === 0) return null;
+        console.log("🎨 Rendering balance cards. WalletSummaries:", walletSummaries);
+        if (walletSummaries.length === 0) {
+            console.log("🎨 No wallet summaries to render");
+            return null;
+        }
 
         return (
             <div className="mx_MyWalletPanel_balanceList">
                 <h4>DAO Balance</h4>
-                {walletSummaries.map((summary) => (
-                    <div key={summary.daoId} className="mx_MyWalletPanel_balanceCard">
-                        <div className="mx_MyWalletPanel_balanceHeader">
-                            <div className="mx_MyWalletPanel_daoInfo">
-                                <div className="mx_MyWalletPanel_daoName">{summary.daoName} Network</div>
-                            </div>
-                            <div className="mx_MyWalletPanel_balanceAmount">
-                                {formatCurrency(summary.balance)} {summary.currency}
+                {walletSummaries.map((summary) => {
+                    console.log(`🎨 Rendering card for ${summary.daoName}: ${summary.balance}${summary.currency}`);
+                    return (
+                        <div key={summary.daoId} className="mx_MyWalletPanel_balanceCard">
+                            <div className="mx_MyWalletPanel_balanceHeader">
+                                <div className="mx_MyWalletPanel_daoInfo">
+                                    <div className="mx_MyWalletPanel_daoName">{summary.daoName} Network</div>
+                                </div>
+                                <div className="mx_MyWalletPanel_balanceAmount">
+                                    {formatCurrency(summary.balance)} {summary.currency}
+                                </div>
                             </div>
                         </div>
-                    </div>
-                ))}
+                    );
+                })}
             </div>
         );
     };
@@ -350,8 +399,8 @@ const MyWalletPanel: React.FC<Props> = ({ onClose }) => {
 
         return (
             <div className="mx_MyWalletPanel_card">
-                <h3>마이월렛</h3>
-                <p>지갑을 생성하거나 기존 지갑을 복구하세요</p>
+                <h3>My Wallet</h3>
+                <p>Create a new wallet or restore an existing one</p>
                 
                 {error && (
                     <div className="mx_MyWalletPanel_error">
@@ -382,7 +431,7 @@ const MyWalletPanel: React.FC<Props> = ({ onClose }) => {
                 ) : (
                     <div className="mx_MyWalletPanel_restoreForm">
                         <Field
-                            label="니모닉 문구 (12단어)"
+                            label="Mnemonic Phrase (12 words)"
                             placeholder="word1 word2 word3 ..."
                             value={mnemonic}
                             onChange={(e) => setMnemonic(e.target.value)}
@@ -395,7 +444,7 @@ const MyWalletPanel: React.FC<Props> = ({ onClose }) => {
                                 onClick={handleRestoreWallet}
                                 disabled={isLoading || !mnemonic.trim()}
                             >
-                                {isLoading ? <Spinner w={16} h={16} /> : "복구하기"}
+                                {isLoading ? <Spinner w={16} h={16} /> : "Restore"}
                             </AccessibleButton>
                             
                             <AccessibleButton
@@ -407,7 +456,7 @@ const MyWalletPanel: React.FC<Props> = ({ onClose }) => {
                                 }}
                                 disabled={isLoading}
                             >
-                                취소
+                                Cancel
                             </AccessibleButton>
                         </div>
                     </div>
