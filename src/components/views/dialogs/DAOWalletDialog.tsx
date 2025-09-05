@@ -20,7 +20,7 @@ export default function DAOWalletDialog(props: IProps): JSX.Element {
             className="mx_DAOWalletDialog"
             hasCancel={true}
             onFinished={props.onFinished}
-            title="마이월렛"
+            title="My Wallet"
             titleClass="mx_DAOWalletDialog_title"
         >
             <div className="mx_DAOWalletDialog_content">

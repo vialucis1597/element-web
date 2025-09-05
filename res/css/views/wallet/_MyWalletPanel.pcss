@@ -95,8 +95,8 @@ Please see LICENSE files in the repository root for full details.
 
             .mx_MyWalletPanel_actions {
                 display: flex;
-                gap: 24px;
                 justify-content: center;
+                align-items: center;
                 padding-top: 16px;
                 border-top: 1px solid var(--cpd-color-border-secondary);
 
@@ -146,6 +146,35 @@ Please see LICENSE files in the repository root for full details.
                     font-size: $font-14px;
                     font-weight: var(--cpd-font-weight-medium);
                     color: var(--cpd-color-text-primary);
+                }
+
+                .mx_MyWalletPanel_daoMainInfo {
+                    display: flex;
+                    flex-direction: row;
+                    align-items: center;
+                }
+
+                .mx_MyWalletPanel_daoNameLink {
+                    color: var(--cpd-color-text-action-accent);
+                    text-decoration: none;
+                    font-size: $font-14px;
+                    font-weight: var(--cpd-font-weight-medium);
+                    transition: color 0.2s, text-decoration 0.2s;
+
+                    &:hover {
+                        color: var(--cpd-color-text-action-accent);
+                        text-decoration: underline;
+                    }
+
+                    &:visited {
+                        color: var(--cpd-color-text-action-accent);
+                    }
+                }
+
+                .mx_MyWalletPanel_daoId {
+                    color: var(--cpd-color-text-secondary);
+                    font-family: monospace;
+                    opacity: 0.7;
                 }
 
                 .mx_MyWalletPanel_balanceAmount {

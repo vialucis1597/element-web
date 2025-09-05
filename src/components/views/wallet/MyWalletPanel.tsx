@@ -18,6 +18,8 @@ import Modal from "../../../Modal";
 import InfoDialog from "../dialogs/InfoDialog";
 import { MatrixClientPeg } from "../../../MatrixClientPeg";
 import SpaceStore from "../../../stores/spaces/SpaceStore";
+import defaultDispatcher from "../../../dispatcher/dispatcher";
+import { Action } from "../../../dispatcher/actions";
 
 interface Props {
     onClose?: () => void;
@@ -292,6 +294,33 @@ const MyWalletPanel: React.FC<Props> = ({ onClose }) => {
         return new Intl.NumberFormat().format(amount);
     };
 
+    const handleNavigateToDAO = useCallback((daoId: string, daoName: string) => {
+        console.log(`🔗 Navigating to DAO: ${daoName} (${daoId})`);
+        defaultDispatcher.dispatch({
+            action: Action.ViewRoom,
+            room_id: daoId,
+            metricsTrigger: "MyWallet",
+        });
+        
+        // 마이월렛 창 닫기
+        if (onClose) {
+            onClose();
+        }
+    }, [onClose]);
+
+    const getDAODisplayId = useCallback((daoId: string, daoName: string) => {
+        try {
+            const client = MatrixClientPeg.safeGet();
+            const room = client.getRoom(daoId);
+            if (room) {
+                return room.getCanonicalAlias() || `#${daoName?.toLowerCase().replace(/\s+/g, '-')}:${client.getDomain()}`;
+            }
+            return `#${daoName?.toLowerCase().replace(/\s+/g, '-')}:localhost`;
+        } catch (error) {
+            return `#${daoName?.toLowerCase().replace(/\s+/g, '-')}:localhost`;
+        }
+    }, []);
+
     const renderWalletInfo = () => {
         if (!walletData) return null;
 
@@ -333,6 +362,7 @@ const MyWalletPanel: React.FC<Props> = ({ onClose }) => {
                     >
                         Backup
                     </a>
+                    <span style={{ margin: "0 12px" }}></span>
                     <a
                         href="#"
                         className="mx_MyWalletPanel_actionLink mx_MyWalletPanel_deleteLink"
@@ -343,6 +373,7 @@ const MyWalletPanel: React.FC<Props> = ({ onClose }) => {
                     >
                         Delete
                     </a>
+                    <span style={{ margin: "0 12px" }}></span>
                     <a
                         href="#"
                         className="mx_MyWalletPanel_actionLink"
@@ -374,7 +405,25 @@ const MyWalletPanel: React.FC<Props> = ({ onClose }) => {
                         <div key={summary.daoId} className="mx_MyWalletPanel_balanceCard">
                             <div className="mx_MyWalletPanel_balanceHeader">
                                 <div className="mx_MyWalletPanel_daoInfo">
-                                    <div className="mx_MyWalletPanel_daoName">{summary.daoName} Network</div>
+                                    <div className="mx_MyWalletPanel_daoMainInfo">
+                                        <a
+                                            href="#"
+                                            className="mx_MyWalletPanel_daoNameLink"
+                                            onClick={(e) => {
+                                                e.preventDefault();
+                                                handleNavigateToDAO(summary.daoId, summary.daoName);
+                                            }}
+                                        >
+                                            {summary.daoName} Network
+                                        </a>
+                                        <span style={{ margin: "0 8px" }}></span>
+                                        <span 
+                                            className="mx_MyWalletPanel_daoId"
+                                            style={{ fontSize: "10px" }}
+                                        >
+                                            {getDAODisplayId(summary.daoId, summary.daoName)}
+                                        </span>
+                                    </div>
                                 </div>
                                 <div className="mx_MyWalletPanel_balanceAmount">
                                     {formatCurrency(summary.balance)} {summary.currency}

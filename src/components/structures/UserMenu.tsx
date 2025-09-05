@@ -348,7 +348,7 @@ export default class UserMenu extends React.Component<IProps, IState> {
                 />
                 <IconizedContextMenuOption
                     iconClassName="mx_UserMenu_iconWallet"
-                    label="마이월렛"
+                    label="My Wallet"
                     onClick={this.onWalletClick}
                 />
                 <IconizedContextMenuOption
