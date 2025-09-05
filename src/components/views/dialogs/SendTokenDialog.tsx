@@ -110,6 +110,12 @@ export default function SendTokenDialog(props: IProps): JSX.Element {
             return;
         }
 
+        // Check if trying to send to self
+        if (recipientAddress.trim().toLowerCase() === props.senderAddress.toLowerCase()) {
+            setError("Cannot send tokens to your own address");
+            return;
+        }
+
         if (!amount.trim() || isNaN(Number(amount)) || Number(amount) <= 0) {
             setError("Please enter valid amount");
             return;
@@ -362,7 +368,7 @@ export default function SendTokenDialog(props: IProps): JSX.Element {
                             onClick={handleQRUpload}
                             className="mx_SendTokenDialog_qrButton"
                         >
-                            QR
+                            QR Upload
                         </AccessibleButton>
                     </div>
 
