@@ -65,10 +65,24 @@ Please see LICENSE files in the repository root for full details.
         display: flex;
         gap: 12px;
         margin-top: 12px;
+        position: relative;
+        z-index: 10;
     }
 
     .mx_QRCodeDialog_copyButton,
     .mx_QRCodeDialog_saveButton {
         flex: 1;
+        cursor: pointer;
+        pointer-events: auto;
+        position: relative;
+        z-index: 11;
+        
+        &:hover {
+            opacity: 0.8;
+        }
+        
+        &:active {
+            transform: translateY(1px);
+        }
     }
 }

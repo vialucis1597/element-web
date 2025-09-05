@@ -22,31 +22,90 @@ interface IProps {
 export default function QRCodeDialog(props: IProps): JSX.Element {
 
     const handleCopyAddress = (): void => {
-        navigator.clipboard.writeText(props.address);
+        console.log("📋 Copy Address button clicked");
+        try {
+            navigator.clipboard.writeText(props.address);
+            console.log("✅ Address copied to clipboard:", props.address);
+            
+            // Visual feedback
+            const button = document.querySelector('.mx_QRCodeDialog_copyButton') as HTMLElement;
+            if (button) {
+                const originalText = button.textContent;
+                button.textContent = "Copied!";
+                setTimeout(() => {
+                    button.textContent = originalText;
+                }, 1000);
+            }
+        } catch (error) {
+            console.error("❌ Failed to copy address:", error);
+        }
     };
 
     const handleSaveQRImage = (): void => {
+        console.log("💾 Save Image button clicked");
         try {
-            // Get the QR code canvas element
-            const qrCanvas = document.querySelector('.mx_QRCodeDialog_qrCode canvas') as HTMLCanvasElement;
-            if (!qrCanvas) {
-                console.error("QR code canvas not found");
+            // QRCode component uses img tag, not canvas - look for the img element
+            const qrImg = document.querySelector('.mx_QRCodeDialog_qrCode img') as HTMLImageElement;
+            console.log("🔍 Looking for QR image:", qrImg);
+            
+            if (!qrImg) {
+                console.error("❌ QR code image not found");
+                // Try alternative selectors
+                const alternativeImg = document.querySelector('.mx_VerificationQRCode') as HTMLImageElement;
+                console.log("🔍 Alternative image search:", alternativeImg);
+                
+                if (!alternativeImg) {
+                    alert("QR code image not found. Please try again.");
+                    return;
+                }
+                
+                // Use alternative image
+                const link = document.createElement('a');
+                link.download = `${props.daoName.replace(/\s+/g, '-')}-wallet-qr.png`;
+                link.href = alternativeImg.src;
+                
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                
+                console.log(`✅ QR code saved as ${link.download} (alternative method)`);
+                
+                // Visual feedback
+                const button = document.querySelector('.mx_QRCodeDialog_saveButton') as HTMLElement;
+                if (button) {
+                    const originalText = button.textContent;
+                    button.textContent = "Saved!";
+                    setTimeout(() => {
+                        button.textContent = originalText;
+                    }, 1000);
+                }
                 return;
             }
 
-            // Create download link
+            // Create download link using the img src (which is already a data URL)
             const link = document.createElement('a');
-            link.download = `${props.daoName}-wallet-qr.png`;
-            link.href = qrCanvas.toDataURL('image/png');
+            link.download = `${props.daoName.replace(/\s+/g, '-')}-wallet-qr.png`;
+            link.href = qrImg.src;
             
             // Trigger download
             document.body.appendChild(link);
             link.click();
             document.body.removeChild(link);
             
-            console.log(`💾 QR code saved as ${link.download}`);
+            console.log(`✅ QR code saved as ${link.download}`);
+            
+            // Visual feedback
+            const button = document.querySelector('.mx_QRCodeDialog_saveButton') as HTMLElement;
+            if (button) {
+                const originalText = button.textContent;
+                button.textContent = "Saved!";
+                setTimeout(() => {
+                    button.textContent = originalText;
+                }, 1000);
+            }
         } catch (error) {
-            console.error("Failed to save QR code:", error);
+            console.error("❌ Failed to save QR code:", error);
+            alert("Failed to save QR code. Please try again.");
         }
     };
 
@@ -68,15 +127,25 @@ export default function QRCodeDialog(props: IProps): JSX.Element {
                     <div className="mx_QRCodeDialog_actions">
                         <AccessibleButton 
                             kind="primary"
-                            onClick={handleCopyAddress}
+                            onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                handleCopyAddress();
+                            }}
                             className="mx_QRCodeDialog_copyButton"
+                            data-testid="copy-address-button"
                         >
                             Copy Address
                         </AccessibleButton>
                         <AccessibleButton 
                             kind="secondary"
-                            onClick={handleSaveQRImage}
+                            onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                handleSaveQRImage();
+                            }}
                             className="mx_QRCodeDialog_saveButton"
+                            data-testid="save-image-button"
                         >
                             Save Image
                         </AccessibleButton>
