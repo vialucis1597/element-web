@@ -61,7 +61,7 @@ export default function QRCodeDialog(props: IProps): JSX.Element {
                 
                 // Use alternative image
                 const link = document.createElement('a');
-                link.download = `${props.daoName.replace(/\s+/g, '-')}-wallet-qr.png`;
+                link.download = 'MY-Wallet-QR.png';
                 link.href = alternativeImg.src;
                 
                 document.body.appendChild(link);
@@ -84,7 +84,7 @@ export default function QRCodeDialog(props: IProps): JSX.Element {
 
             // Create download link using the img src (which is already a data URL)
             const link = document.createElement('a');
-            link.download = `${props.daoName.replace(/\s+/g, '-')}-wallet-qr.png`;
+            link.download = 'MY-Wallet-QR.png';
             link.href = qrImg.src;
             
             // Trigger download
@@ -114,7 +114,7 @@ export default function QRCodeDialog(props: IProps): JSX.Element {
             className="mx_QRCodeDialog"
             hasCancel={true}
             onFinished={props.onFinished}
-            title={`${props.daoName} Wallet QR Code`}
+            title="MY Wallet QR Code"
             titleClass="mx_QRCodeDialog_title"
         >
             <div className="mx_QRCodeDialog_content">

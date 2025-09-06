@@ -108,7 +108,7 @@ const DAOWalletSection: React.FC<Props> = ({ space }) => {
                 }
             }
             
-            const backupData = `DAO: ${daoId}\nName: ${daoName}\nMnemonic: ${newWallet.mnemonic}\nAddress: ${newWallet.address}\n\n`;
+            const backupData = `Mnemonic: ${newWallet.mnemonic}\nAddress: ${newWallet.address}`;
             
             Modal.createDialog(InfoDialog, {
                 title: "지갑 생성 완료",
@@ -402,7 +402,7 @@ const DAOWalletSection: React.FC<Props> = ({ space }) => {
     return (
         <div className="mx_DAOWalletSection">
             <div className="mx_DAOWalletSection_header">
-                <h3>Balance: {daoName} Network</h3>
+                <h3>Balance: {daoName} DAO</h3>
             </div>
 
             <div className="mx_DAOWalletSection_walletInfo">

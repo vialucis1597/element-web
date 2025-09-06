@@ -349,7 +349,7 @@ export default function SendTokenDialog(props: IProps): JSX.Element {
             className="mx_SendTokenDialog"
             hasCancel={true}
             onFinished={props.onFinished}
-            title={`Send ${props.currency} - ${props.daoName}`}
+            title={`Send Brotherhood - ${props.daoName} DAO`}
             titleClass="mx_SendTokenDialog_title"
         >
             <div className="mx_SendTokenDialog_content">

@@ -124,7 +124,7 @@ export default function TransactionHistoryDialog(props: IProps): JSX.Element {
                 balance: txData.balance,
                 senderBalance: txData.senderBalance,
                 recipientBalance: txData.recipientBalance,
-                timestamp: txData.timestamp || event.getTs(),
+                timestamp: txData.timestamp ? new Date(txData.timestamp).getTime() : event.getTs(),
                 verifier: txData.verifier || "",
                 verifierUserId: txData.verifierUserId || "",
                 txHash: txData.txHash || "",
