@@ -109,11 +109,11 @@ const createSubspaces = async (client: MatrixClient, parentRoomId: string, daoNa
         await createRoom(client, {
             createOpts: {
                 name: `GOV`,
-                preset: Preset.PrivateChat,
+                preset: Preset.PublicChat,
                 visibility: Visibility.Private,
                 power_level_content_override: {
                     events_default: 100,
-                    invite: 50,
+                    invite: 0,
                 },
                 topic: `Issue Hub Governance space for ${daoName} DAO`,
             },
@@ -124,7 +124,7 @@ const createSubspaces = async (client: MatrixClient, parentRoomId: string, daoNa
             andView: false,
             inlineErrors: true,
             parentSpace,
-            joinRule: JoinRule.Restricted,
+            joinRule: JoinRule.Public,
         });
 
         await createRoom(client, {
