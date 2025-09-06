@@ -174,7 +174,7 @@ export default function TransactionHistoryDialog(props: IProps): JSX.Element {
             className="mx_TransactionHistoryDialog"
             hasCancel={true}
             onFinished={props.onFinished}
-            title={`Transaction History - ${props.daoName}`}
+            title={`Transaction History - ${props.daoName} DAO`}
         >
             <div className="mx_TransactionHistoryDialog_content">
                 {isLoading && (
@@ -198,57 +198,52 @@ export default function TransactionHistoryDialog(props: IProps): JSX.Element {
                             </div>
                         ) : (
                             <div className="mx_TransactionHistoryDialog_list">
-                                <div className="mx_TransactionHistoryDialog_header">
-                                    <div className="mx_TransactionHistoryDialog_headerCell">Type</div>
-                                    <div className="mx_TransactionHistoryDialog_headerCell">From/To</div>
-                                    <div className="mx_TransactionHistoryDialog_headerCell">Amount</div>
-                                    <div className="mx_TransactionHistoryDialog_headerCell">Balance</div>
-                                    <div className="mx_TransactionHistoryDialog_headerCell">Date</div>
-                                    <div className="mx_TransactionHistoryDialog_headerCell">TX Hash</div>
-                                </div>
-                                
                                 {transactions.map((tx, index) => {
                                     const txType = getTransactionType(tx);
                                     const userBalance = getBalanceForUser(tx);
                                     
                                     return (
-                                        <div key={tx.eventId || index} className="mx_TransactionHistoryDialog_row">
+                                        <div 
+                                            key={tx.eventId || index} 
+                                            className="mx_TransactionHistoryDialog_row"
+                                            style={{ marginBottom: index < transactions.length - 1 ? '16px' : '0' }}
+                                        >
                                             <div className="mx_TransactionHistoryDialog_cell">
+                                                <strong>Type:</strong> 
                                                 <span 
                                                     className="mx_TransactionHistoryDialog_type"
-                                                    style={{ color: txType.color }}
+                                                    style={{ color: txType.color, marginLeft: '8px' }}
                                                 >
                                                     {txType.label}
                                                 </span>
                                             </div>
                                             <div className="mx_TransactionHistoryDialog_cell">
-                                                {tx.type === "PoC:issue" ? (
-                                                    <span>System Issue</span>
-                                                ) : tx.from === props.walletAddress ? (
-                                                    <span>→ {formatAddress(tx.to)}</span>
-                                                ) : (
-                                                    <span>← {formatAddress(tx.from)}</span>
-                                                )}
-                                            </div>
-                                            <div className="mx_TransactionHistoryDialog_cell">
-                                                <span className="mx_TransactionHistoryDialog_amount">
-                                                    {tx.amount}B
+                                                <strong>From/To:</strong>
+                                                <span style={{ marginLeft: '8px' }}>
+                                                    {tx.type === "PoC:issue" ? (
+                                                        "System Issue"
+                                                    ) : tx.from === props.walletAddress ? (
+                                                        `→ ${formatAddress(tx.to)}`
+                                                    ) : (
+                                                        `← ${formatAddress(tx.from)}`
+                                                    )}
                                                 </span>
                                             </div>
                                             <div className="mx_TransactionHistoryDialog_cell">
-                                                <span className="mx_TransactionHistoryDialog_balance">
-                                                    {userBalance}B
-                                                </span>
+                                                <strong>Amount:</strong>
+                                                <span style={{ marginLeft: '8px' }}>{tx.amount}B</span>
                                             </div>
                                             <div className="mx_TransactionHistoryDialog_cell">
-                                                <span className="mx_TransactionHistoryDialog_date">
-                                                    {formatDate(tx.timestamp)}
-                                                </span>
+                                                <strong>Balance:</strong>
+                                                <span style={{ marginLeft: '8px' }}>{userBalance}B</span>
                                             </div>
                                             <div className="mx_TransactionHistoryDialog_cell">
-                                                <span className="mx_TransactionHistoryDialog_hash">
-                                                    {formatAddress(tx.txHash)}
-                                                </span>
+                                                <strong>Date:</strong>
+                                                <span style={{ marginLeft: '8px' }}>{formatDate(tx.timestamp)}</span>
+                                            </div>
+                                            <div className="mx_TransactionHistoryDialog_cell">
+                                                <strong>TX Hash:</strong>
+                                                <span style={{ marginLeft: '8px' }}>{formatAddress(tx.txHash)}</span>
                                             </div>
                                         </div>
                                     );

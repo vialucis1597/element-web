@@ -324,7 +324,7 @@ const SpaceLanding: React.FC<{ space: Room }> = ({ space }) => {
                             })}
                         >
                             <div className="mx_SpaceRoomView_landing_daoButton_title">GOV</div>
-                            <div className="mx_SpaceRoomView_landing_daoButton_description">Governance & Voting</div>
+                            <div className="mx_SpaceRoomView_landing_daoButton_description">Issue Hub Governance</div>
                         </AccessibleButton>
                     )}
                     {daoSubspaces.dca && (
@@ -337,7 +337,7 @@ const SpaceLanding: React.FC<{ space: Room }> = ({ space }) => {
                             })}
                         >
                             <div className="mx_SpaceRoomView_landing_daoButton_title">DCA</div>
-                            <div className="mx_SpaceRoomView_landing_daoButton_description">Designated Contributing Activity</div>
+                            <div className="mx_SpaceRoomView_landing_daoButton_description">Designated Contribution Activities</div>
                         </AccessibleButton>
                     )}
                 </div>
