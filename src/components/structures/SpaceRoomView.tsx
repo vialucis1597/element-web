@@ -124,7 +124,7 @@ const SpaceLandingAddButton: React.FC<{ space: Room }> = ({ space }) => {
                     {canCreateRoom && (
                         <>
                             <IconizedContextMenuOption
-                                label={_t("action|new_room")}
+                                label={isGOVSpace ? "New agenda" : _t("action|new_room")}
                                 iconClassName="mx_LegacyRoomList_iconNewRoom"
                                 onClick={async (e): Promise<void> => {
                                     e.preventDefault();

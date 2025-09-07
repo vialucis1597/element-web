@@ -252,7 +252,7 @@ const UntaggedAuxButton: React.FC<IAuxButtonProps> = ({ tabIndex }) => {
                 {showCreateRoom ? (
                     <>
                         <IconizedContextMenuOption
-                            label={_t("action|new_room")}
+                            label={isGOVSpace ? "New agenda" : _t("action|new_room")}
                             iconClassName="mx_LegacyRoomList_iconNewRoom"
                             onClick={(e) => {
                                 e.preventDefault();

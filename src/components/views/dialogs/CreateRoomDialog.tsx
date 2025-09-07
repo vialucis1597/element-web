@@ -89,6 +89,10 @@ interface IState {
      * The room avatar file for GOV proposals.
      */
     avatar?: File;
+    /**
+     * The agenda type for GOV space: 'proposal' or 'discussion'
+     */
+    agendaType: 'proposal' | 'discussion';
 }
 
 export default class CreateRoomDialog extends React.Component<IProps, IState> {
@@ -125,6 +129,7 @@ export default class CreateRoomDialog extends React.Component<IProps, IState> {
             canChangeEncryption: false,
             contributionValue: "",
             avatar: undefined,
+            agendaType: 'proposal',
         };
     }
 
@@ -315,6 +320,10 @@ export default class CreateRoomDialog extends React.Component<IProps, IState> {
         this.setState({ avatar: undefined });
     };
 
+    private onAgendaTypeChange = (agendaType: 'proposal' | 'discussion'): void => {
+        this.setState({ agendaType });
+    };
+
     private static validateRoomName = withValidation({
         rules: [
             {
@@ -493,7 +502,7 @@ export default class CreateRoomDialog extends React.Component<IProps, IState> {
         } else if (this.isDCASpace()) {
             title = "Create a DCA room (Designated Contribution Activities)";
         } else if (this.isGOVSpace()) {
-            title = "Create Proposal";
+            title = "New agenda";
         } else if (this.props.parentSpace || this.state.joinRule === JoinRule.Knock) {
             title = _t("action|create_a_room");
         } else {
@@ -512,16 +521,55 @@ export default class CreateRoomDialog extends React.Component<IProps, IState> {
             >
                 <form onSubmit={this.onOk} onKeyDown={this.onKeyDown}>
                     <div className="mx_Dialog_content">
+                        {this.isGOVSpace() && (
+                            <div className="mx_CreateRoomDialog_agendaType">
+                                <label className="mx_CreateRoomDialog_agendaType_label">Choose agenda type:</label>
+                                <div className="mx_CreateRoomDialog_agendaType_options">
+                                    <label className="mx_CreateRoomDialog_agendaType_option">
+                                        <input
+                                            type="radio"
+                                            name="agendaType"
+                                            value="proposal"
+                                            checked={this.state.agendaType === 'proposal'}
+                                            onChange={() => this.onAgendaTypeChange('proposal')}
+                                            className="mx_CreateRoomDialog_agendaType_radio"
+                                        />
+                                        <span className="mx_CreateRoomDialog_agendaType_radioLabel">Create Proposal</span>
+                                    </label>
+                                    <label className="mx_CreateRoomDialog_agendaType_option">
+                                        <input
+                                            type="radio"
+                                            name="agendaType"
+                                            value="discussion"
+                                            checked={this.state.agendaType === 'discussion'}
+                                            onChange={() => this.onAgendaTypeChange('discussion')}
+                                            className="mx_CreateRoomDialog_agendaType_radio"
+                                        />
+                                        <span className="mx_CreateRoomDialog_agendaType_radioLabel">Create Discussion</span>
+                                    </label>
+                                </div>
+                            </div>
+                        )}
                         <Field
                             ref={this.nameField}
-                            label={this.isDCASpace() ? "Contribution Activity Name" : this.isGOVSpace() ? "Proposal Name" : _t("common|name")}
+                            label={
+                                this.isDCASpace() ? "Contribution Activity Name" : 
+                                this.isGOVSpace() ? 
+                                    (this.state.agendaType === 'proposal' ? "Proposal Name" : "Discussion Name") : 
+                                _t("common|name")
+                            }
                             onChange={this.onNameChange}
                             onValidate={this.onNameValidate}
                             value={this.state.name}
                             className={`mx_CreateRoomDialog_name ${this.isGOVSpace() ? "mx_CreateRoomDialog_name_GOV" : ""}`}
                         />
                         <Field
-                            label={this.isDCASpace() ? "Verification Method" : this.isGOVSpace() ? "Proposal Description" : _t("create_room|topic_label")}
+                            label={
+                                this.isDCASpace() ? "Verification Method" : 
+                                this.isGOVSpace() ? 
+                                    (this.state.agendaType === 'proposal' ? "Proposal Description" : "Discussion Description") : 
+                                _t("create_room|topic_label")
+                            }
                             onChange={this.onTopicChange}
                             value={this.state.topic}
                             className={`mx_CreateRoomDialog_topic ${this.isGOVSpace() ? "mx_CreateRoomDialog_topic_GOV" : ""}`}
@@ -530,13 +578,15 @@ export default class CreateRoomDialog extends React.Component<IProps, IState> {
                         />
                         {this.isGOVSpace() && (
                             <div className="mx_CreateRoomDialog_avatar">
-                                <label className="mx_CreateRoomDialog_avatar_label">Proposal Avatar</label>
+                                <label className="mx_CreateRoomDialog_avatar_label">
+                                    {this.state.agendaType === 'proposal' ? "Proposal Avatar" : "Discussion Avatar"}
+                                </label>
                                 <div className="mx_CreateRoomDialog_avatar_container">
                                     {this.state.avatar ? (
                                         <div className="mx_CreateRoomDialog_avatar_preview">
                                             <img 
                                                 src={URL.createObjectURL(this.state.avatar)} 
-                                                alt="Proposal Avatar"
+                                                alt={this.state.agendaType === 'proposal' ? "Proposal Avatar" : "Discussion Avatar"}
                                                 className="mx_CreateRoomDialog_avatar_image"
                                             />
                                             <div className="mx_CreateRoomDialog_avatar_buttons">
@@ -561,7 +611,9 @@ export default class CreateRoomDialog extends React.Component<IProps, IState> {
                                                 className="mx_CreateRoomDialog_avatar_upload"
                                             >
                                                 <div className="mx_CreateRoomDialog_avatar_upload_icon">📷</div>
-                                                <div className="mx_CreateRoomDialog_avatar_upload_text">Upload Proposal Avatar</div>
+                                                <div className="mx_CreateRoomDialog_avatar_upload_text">
+                                                {this.state.agendaType === 'proposal' ? "Upload Proposal Avatar" : "Upload Discussion Avatar"}
+                                            </div>
                                             </AccessibleButton>
                                         </div>
                                     )}
@@ -616,7 +668,8 @@ export default class CreateRoomDialog extends React.Component<IProps, IState> {
                 <DialogButtons
                     primaryButton={
                         isVideoRoom ? _t("create_room|action_create_video_room") : 
-                        this.isGOVSpace() ? "Create Proposal" :
+                        this.isGOVSpace() ? 
+                            (this.state.agendaType === 'proposal' ? "Create Proposal" : "Create Discussion") :
                         _t("create_room|action_create_room")
                     }
                     onPrimaryButtonClick={this.onOk}

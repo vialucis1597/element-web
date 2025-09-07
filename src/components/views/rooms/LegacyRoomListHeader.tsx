@@ -196,17 +196,17 @@ const LegacyRoomListHeader: React.FC<IProps> = ({ onVisibilityChange }) => {
         if (activeSpace?.currentState.maySendStateEvent(EventType.RoomAvatar, cli.getUserId()!)) {
             newRoomOptions = (
                 <>
-                    <IconizedContextMenuOption
-                        iconClassName="mx_LegacyRoomListHeader_iconNewRoom"
-                        label={_t("action|new_room")}
-                        onClick={(e) => {
-                            e.preventDefault();
-                            e.stopPropagation();
-                            showCreateNewRoom(activeSpace);
-                            PosthogTrackers.trackInteraction("WebRoomListHeaderPlusMenuCreateRoomItem", e);
-                            closePlusMenu();
-                        }}
-                    />
+                            <IconizedContextMenuOption
+                                iconClassName="mx_LegacyRoomListHeader_iconNewRoom"
+                                label={isGOVSpace ? "New agenda" : _t("action|new_room")}
+                                onClick={(e) => {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    showCreateNewRoom(activeSpace);
+                                    PosthogTrackers.trackInteraction("WebRoomListHeaderPlusMenuCreateRoomItem", e);
+                                    closePlusMenu();
+                                }}
+                            />
                     {videoRoomsEnabled && (
                         <IconizedContextMenuOption
                             iconClassName="mx_LegacyRoomListHeader_iconNewVideoRoom"
