@@ -597,6 +597,10 @@ export default class LegacyRoomList extends React.PureComponent<IProps, IState> 
             const aesthetics = TAG_AESTHETICS[orderedTagId];
             if (!aesthetics) throw new Error(`Tag ${orderedTagId} does not have aesthetics`);
 
+            // Check if we're in a GOV space to customize the label
+            const activeSpaceRoom = SpaceStore.instance.activeSpaceRoom;
+            const isGOVSpace = activeSpaceRoom?.name === "GOV";
+
             let alwaysVisible = ALWAYS_VISIBLE_TAGS.includes(orderedTagId);
             if (
                 (this.props.activeSpace === MetaSpace.Favourites && orderedTagId !== DefaultTagID.Favourite) ||
@@ -625,7 +629,11 @@ export default class LegacyRoomList extends React.PureComponent<IProps, IState> 
                     tagId={orderedTagId}
                     forRooms={true}
                     startAsHidden={aesthetics.defaultHidden}
-                    label={aesthetics.sectionLabelRaw ? aesthetics.sectionLabelRaw : _t(aesthetics.sectionLabel)}
+                    label={
+                        aesthetics.sectionLabelRaw ? 
+                            aesthetics.sectionLabelRaw : 
+                            (isGOVSpace && orderedTagId === DefaultTagID.Untagged ? "Agenda" : _t(aesthetics.sectionLabel))
+                    }
                     AuxButtonComponent={aesthetics.AuxButtonComponent}
                     isMinimized={this.props.isMinimized}
                     showSkeleton={showSkeleton}

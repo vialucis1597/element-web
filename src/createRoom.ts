@@ -382,16 +382,41 @@ export default async function createRoom(client: MatrixClient, opts: IOpts): Pro
                                 // Determine message prefix based on agenda type
                                 const messagePrefix = govAgenda.type === 'discussion' ? 'Topic' : 'Proposal';
                                 
+                                // Upload embedded images first
+                                const imageMap = new Map<string, string>();
+                                if (govAgenda.embeddedImages && govAgenda.embeddedImages.length > 0) {
+                                    for (const image of govAgenda.embeddedImages) {
+                                        try {
+                                            const { content_uri } = await client.uploadContent(image.file);
+                                            imageMap.set(image.id, content_uri);
+                                        } catch (error) {
+                                            logger.error(`Failed to upload image ${image.id}:`, error);
+                                        }
+                                    }
+                                }
+
+                                // Process description to replace image placeholders
+                                let processedDescription = govAgenda.fullDescription;
+                                let processedHtmlDescription = govAgenda.fullDescription.replace(/\n/g, '<br>');
+
+                                // Replace image placeholders with actual images
+                                for (const [imageId, mxcUrl] of imageMap) {
+                                    const placeholder = `[IMAGE:${imageId}]`;
+                                    const imageHtml = `<img src="${mxcUrl}" alt="Embedded image" style="max-width: 100%; height: auto;" />`;
+                                    processedDescription = processedDescription.replace(placeholder, `[Image: ${mxcUrl}]`);
+                                    processedHtmlDescription = processedHtmlDescription.replace(placeholder, imageHtml);
+                                }
+                                
                                 // Send agenda message (without auto-pinning)
                                 const agendaContent = {
                                     msgtype: "m.text",
-                                    body: `**${messagePrefix}: ${govAgenda.name}**\n\n${govAgenda.fullDescription}`,
+                                    body: `**${messagePrefix}: ${govAgenda.name}**\n\n${processedDescription}`,
                                     format: "org.matrix.custom.html",
-                                    formatted_body: `<h3>${messagePrefix}: ${govAgenda.name}</h3><p>${govAgenda.fullDescription.replace(/\n/g, '<br>')}</p>`,
+                                    formatted_body: `<h3>${messagePrefix}: ${govAgenda.name}</h3><p>${processedHtmlDescription}</p>`,
                                 };
                                 
                                 await client.sendMessage(roomId, agendaContent);
-                                logger.info(`Successfully sent GOV ${govAgenda.type} message`);
+                                logger.info(`Successfully sent GOV ${govAgenda.type} message with ${imageMap.size} images`);
                             }
                         } catch (error) {
                             logger.error(`Failed to send GOV ${govAgenda.type} message:`, error);

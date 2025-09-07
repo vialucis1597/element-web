@@ -93,6 +93,10 @@ interface IState {
      * The agenda type for GOV space: 'proposal' or 'discussion'
      */
     agendaType: 'proposal' | 'discussion';
+    /**
+     * Images embedded in the description for GOV spaces
+     */
+    embeddedImages: Array<{id: string, file: File, url: string}>;
 }
 
 export default class CreateRoomDialog extends React.Component<IProps, IState> {
@@ -130,6 +134,7 @@ export default class CreateRoomDialog extends React.Component<IProps, IState> {
             contributionValue: "",
             avatar: undefined,
             agendaType: 'proposal',
+            embeddedImages: [],
         };
     }
 
@@ -196,6 +201,7 @@ export default class CreateRoomDialog extends React.Component<IProps, IState> {
                 name: this.state.name,
                 fullDescription: this.state.topic,
                 type: this.state.agendaType, // 'proposal' or 'discussion'
+                embeddedImages: this.state.embeddedImages, // Include embedded images
             };
             
             // Set avatar if provided
@@ -328,6 +334,55 @@ export default class CreateRoomDialog extends React.Component<IProps, IState> {
 
     private onAgendaTypeChange = (agendaType: 'proposal' | 'discussion'): void => {
         this.setState({ agendaType });
+    };
+
+    private onImageUpload = (event: React.ChangeEvent<HTMLInputElement>): void => {
+        const files = event.target.files;
+        if (!files || files.length === 0) return;
+
+        const file = files[0];
+        if (!file.type.startsWith('image/')) return;
+
+        const id = `img_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+        const url = URL.createObjectURL(file);
+        
+        this.setState(prevState => ({
+            embeddedImages: [...prevState.embeddedImages, { id, file, url }]
+        }));
+
+        // Reset the input
+        event.target.value = '';
+    };
+
+    private onRemoveImage = (imageId: string): void => {
+        this.setState(prevState => {
+            const imageToRemove = prevState.embeddedImages.find(img => img.id === imageId);
+            if (imageToRemove) {
+                URL.revokeObjectURL(imageToRemove.url);
+            }
+            return {
+                embeddedImages: prevState.embeddedImages.filter(img => img.id !== imageId)
+            };
+        });
+    };
+
+    private insertImagePlaceholder = (imageId: string): void => {
+        const textarea = document.querySelector('.mx_CreateRoomDialog_topic_GOV textarea') as HTMLTextAreaElement;
+        if (!textarea) return;
+
+        const placeholder = `[IMAGE:${imageId}]`;
+        const start = textarea.selectionStart;
+        const end = textarea.selectionEnd;
+        const currentValue = this.state.topic;
+        
+        const newValue = currentValue.substring(0, start) + placeholder + currentValue.substring(end);
+        this.setState({ topic: newValue });
+
+        // Restore cursor position
+        setTimeout(() => {
+            textarea.selectionStart = textarea.selectionEnd = start + placeholder.length;
+            textarea.focus();
+        }, 0);
     };
 
     private static validateRoomName = withValidation({
@@ -582,6 +637,56 @@ export default class CreateRoomDialog extends React.Component<IProps, IState> {
                             element={this.isGOVSpace() ? "textarea" : undefined}
                             rows={this.isGOVSpace() ? 12 : undefined}
                         />
+                        {this.isGOVSpace() && (
+                            <div className="mx_CreateRoomDialog_imageUpload">
+                                <div className="mx_CreateRoomDialog_imageUpload_header">
+                                    <label className="mx_CreateRoomDialog_imageUpload_label">Images</label>
+                                    <input
+                                        type="file"
+                                        accept="image/*"
+                                        onChange={this.onImageUpload}
+                                        style={{ display: 'none' }}
+                                        id="imageUploadInput"
+                                    />
+                                    <AccessibleButton
+                                        onClick={() => document.getElementById('imageUploadInput')?.click()}
+                                        className="mx_CreateRoomDialog_imageUpload_button"
+                                    >
+                                        📷 Add Image
+                                    </AccessibleButton>
+                                </div>
+                                {this.state.embeddedImages.length > 0 && (
+                                    <div className="mx_CreateRoomDialog_imageUpload_list">
+                                        {this.state.embeddedImages.map((image) => (
+                                            <div key={image.id} className="mx_CreateRoomDialog_imageUpload_item">
+                                                <img
+                                                    src={image.url}
+                                                    alt="Uploaded"
+                                                    className="mx_CreateRoomDialog_imageUpload_preview"
+                                                />
+                                                <div className="mx_CreateRoomDialog_imageUpload_actions">
+                                                    <AccessibleButton
+                                                        onClick={() => this.insertImagePlaceholder(image.id)}
+                                                        className="mx_CreateRoomDialog_imageUpload_insert"
+                                                    >
+                                                        Insert
+                                                    </AccessibleButton>
+                                                    <AccessibleButton
+                                                        onClick={() => this.onRemoveImage(image.id)}
+                                                        className="mx_CreateRoomDialog_imageUpload_remove"
+                                                    >
+                                                        Remove
+                                                    </AccessibleButton>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+                                <div className="mx_CreateRoomDialog_imageUpload_help">
+                                    Upload images and click "Insert" to add them to your description at the cursor position.
+                                </div>
+                            </div>
+                        )}
                         {this.isGOVSpace() && (
                             <div className="mx_CreateRoomDialog_avatar">
                                 <label className="mx_CreateRoomDialog_avatar_label">
