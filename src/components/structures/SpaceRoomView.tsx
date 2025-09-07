@@ -102,6 +102,9 @@ const SpaceLandingAddButton: React.FC<{ space: Room }> = ({ space }) => {
     const videoRoomsEnabled = useFeatureEnabled("feature_video_rooms");
     const elementCallVideoRoomsEnabled = useFeatureEnabled("feature_element_call_video_rooms");
 
+    // Check if this is a GOV space
+    const isGOVSpace = space.name === "GOV";
+
     let contextMenu: JSX.Element | null = null;
     if (menuDisplayed) {
         const rect = handle.current!.getBoundingClientRect();
@@ -157,17 +160,19 @@ const SpaceLandingAddButton: React.FC<{ space: Room }> = ({ space }) => {
                             )}
                         </>
                     )}
-                    <IconizedContextMenuOption
-                        label={_t("action|add_existing_room")}
-                        iconClassName="mx_LegacyRoomList_iconAddExistingRoom"
-                        onClick={(e) => {
-                            e.preventDefault();
-                            e.stopPropagation();
-                            closeMenu();
-                            showAddExistingRooms(space);
-                        }}
-                    />
-                    {canCreateSpace && (
+                    {!isGOVSpace && (
+                        <IconizedContextMenuOption
+                            label={_t("action|add_existing_room")}
+                            iconClassName="mx_LegacyRoomList_iconAddExistingRoom"
+                            onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                closeMenu();
+                                showAddExistingRooms(space);
+                            }}
+                        />
+                    )}
+                    {canCreateSpace && !isGOVSpace && (
                         <IconizedContextMenuOption
                             label={_t("room_list|add_space_label")}
                             iconClassName="mx_LegacyRoomList_iconPlus"

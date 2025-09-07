@@ -150,6 +150,9 @@ const LegacyRoomListHeader: React.FC<IProps> = ({ onVisibilityChange }) => {
     const canAddSubRooms = hasPermissionToAddSpaceChild && canCreateRooms;
     const canAddSubSpaces = hasPermissionToAddSpaceChild && canCreateSpaces;
 
+    // Check if this is a GOV space
+    const isGOVSpace = activeSpace?.name === "GOV";
+
     // If the user can't do anything on the plus menu, don't show it. This aims to target the
     // plus menu shown on the Home tab primarily: the user has options to use the menu for
     // communities and spaces, but is at risk of no options on the Home tab.
@@ -249,19 +252,21 @@ const LegacyRoomListHeader: React.FC<IProps> = ({ onVisibilityChange }) => {
                             PosthogTrackers.trackInteraction("WebRoomListHeaderPlusMenuExploreRoomsItem", e);
                         }}
                     />
-                    <IconizedContextMenuOption
-                        label={_t("action|add_existing_room")}
-                        iconClassName="mx_LegacyRoomListHeader_iconPlus"
-                        onClick={(e) => {
-                            e.preventDefault();
-                            e.stopPropagation();
-                            showAddExistingRooms(activeSpace);
-                            closePlusMenu();
-                        }}
-                        disabled={!canAddSubRooms}
-                        title={!canAddSubRooms ? _t("spaces|error_no_permission_add_room") : undefined}
-                    />
-                    {canCreateSpaces && (
+                    {!isGOVSpace && (
+                        <IconizedContextMenuOption
+                            label={_t("action|add_existing_room")}
+                            iconClassName="mx_LegacyRoomListHeader_iconPlus"
+                            onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                showAddExistingRooms(activeSpace);
+                                closePlusMenu();
+                            }}
+                            disabled={!canAddSubRooms}
+                            title={!canAddSubRooms ? _t("spaces|error_no_permission_add_room") : undefined}
+                        />
+                    )}
+                    {canCreateSpaces && !isGOVSpace && (
                         <IconizedContextMenuOption
                             label={_t("room_list|add_space_label")}
                             iconClassName="mx_LegacyRoomListHeader_iconPlus"
