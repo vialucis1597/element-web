@@ -1,0 +1,77 @@
+/*
+Copyright 2024 New Vector Ltd.
+
+SPDX-License-Identifier: AGPL-3.0-only OR GPL-3.0-only OR LicenseRef-Element-Commercial
+Please see LICENSE files in the repository root for full details.
+*/
+
+.mx_PollStatusIndicator {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    margin-left: 8px;
+    flex-shrink: 0;
+    font-size: 12px;
+    font-weight: 600;
+    
+    &.mx_PollStatusIndicator_active {
+        background-color: var(--cpd-color-bg-action-primary-rest);
+        color: var(--cpd-color-text-on-solid-primary);
+        animation: pulse 2s infinite;
+        
+        .mx_PollStatusIndicator_activeIcon {
+            font-size: 10px;
+        }
+    }
+    
+    &.mx_PollStatusIndicator_ended {
+        background-color: var(--cpd-color-bg-subtle-secondary);
+        color: var(--cpd-color-text-primary);
+        
+        .mx_PollStatusIndicator_checkIcon {
+            color: var(--cpd-color-icon-success-primary);
+            font-size: 14px;
+            font-weight: bold;
+        }
+        
+        .mx_PollStatusIndicator_abstainIcon {
+            color: var(--cpd-color-icon-tertiary);
+            font-size: 8px;
+        }
+        
+        .mx_PollStatusIndicator_completedIcon {
+            color: var(--cpd-color-icon-success-primary);
+            font-size: 12px;
+        }
+        
+        .mx_PollStatusIndicator_noVotes {
+            color: var(--cpd-color-text-disabled);
+            font-size: 14px;
+        }
+    }
+}
+
+/* Animation for active polls */
+@keyframes pulse {
+    0% {
+        opacity: 1;
+        transform: scale(1);
+    }
+    50% {
+        opacity: 0.8;
+        transform: scale(1.05);
+    }
+    100% {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
+/* Integration with RoomTile */
+.mx_RoomTile_pollStatus {
+    margin-left: auto;
+    margin-right: 8px;
+}

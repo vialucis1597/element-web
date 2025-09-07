@@ -44,6 +44,7 @@ import { shouldShowComponent } from "../../../customisations/helpers/UIComponent
 import { UIComponent } from "../../../settings/UIFeature";
 import { isKnockDenied } from "../../../utils/membership";
 import SettingsStore from "../../../settings/SettingsStore";
+import PollStatusIndicator from "./PollStatusIndicator";
 
 interface Props {
     room: Room;
@@ -396,6 +397,11 @@ class RoomTile extends React.PureComponent<Props, State> {
             );
         }
 
+        // Add poll status indicator for proposal rooms
+        const pollStatusIndicator = !this.props.isMinimized && this.props.room.name?.startsWith("Proposal #") ? (
+            <PollStatusIndicator room={this.props.room} className="mx_RoomTile_pollStatus" />
+        ) : null;
+
         const subtitle = this.shouldRenderSubtitle ? (
             <RoomTileSubtitle
                 call={this.state.call}
@@ -469,6 +475,7 @@ class RoomTile extends React.PureComponent<Props, State> {
                                 tooltipProps={{ tabIndex: isActive ? 0 : -1 }}
                             />
                             {titleContainer}
+                            {pollStatusIndicator}
                             {badge}
                             {this.renderGeneralMenu()}
                             {this.renderNotificationsMenu(isActive)}
