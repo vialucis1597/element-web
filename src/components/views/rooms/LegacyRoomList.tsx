@@ -219,6 +219,12 @@ const UntaggedAuxButton: React.FC<IAuxButtonProps> = ({ tabIndex }) => {
     const videoRoomsEnabled = useFeatureEnabled("feature_video_rooms");
     const elementCallVideoRoomsEnabled = useFeatureEnabled("feature_element_call_video_rooms");
 
+    // Check if this is a GOV space (more comprehensive check)
+    const isGOVSpace = activeSpace?.name === "GOV" || activeSpace?.getCanonicalAlias()?.includes("gov") || activeSpace?.roomId.includes("gov");
+    
+    // Debug logging
+    console.log("UntaggedAuxButton - Space name:", activeSpace?.name, "isGOVSpace:", isGOVSpace);
+
     let contextMenuContent: JSX.Element | undefined;
     if (menuDisplayed && activeSpace) {
         const canAddRooms = activeSpace.currentState.maySendStateEvent(
@@ -277,18 +283,20 @@ const UntaggedAuxButton: React.FC<IAuxButtonProps> = ({ tabIndex }) => {
                                 <BetaPill />
                             </IconizedContextMenuOption>
                         )}
-                        <IconizedContextMenuOption
-                            label={_t("action|add_existing_room")}
-                            iconClassName="mx_LegacyRoomList_iconAddExistingRoom"
-                            onClick={(e) => {
-                                e.preventDefault();
-                                e.stopPropagation();
-                                closeMenu();
-                                showAddExistingRooms(activeSpace);
-                            }}
-                            disabled={!canAddRooms}
-                            title={canAddRooms ? undefined : _t("spaces|error_no_permission_add_room")}
-                        />
+                        {!isGOVSpace && (
+                            <IconizedContextMenuOption
+                                label={_t("action|add_existing_room")}
+                                iconClassName="mx_LegacyRoomList_iconAddExistingRoom"
+                                onClick={(e) => {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    closeMenu();
+                                    showAddExistingRooms(activeSpace);
+                                }}
+                                disabled={!canAddRooms}
+                                title={canAddRooms ? undefined : _t("spaces|error_no_permission_add_room")}
+                            />
+                        )}
                     </>
                 ) : null}
             </IconizedContextMenuOptionList>

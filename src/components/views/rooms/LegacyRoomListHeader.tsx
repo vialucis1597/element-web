@@ -150,8 +150,8 @@ const LegacyRoomListHeader: React.FC<IProps> = ({ onVisibilityChange }) => {
     const canAddSubRooms = hasPermissionToAddSpaceChild && canCreateRooms;
     const canAddSubSpaces = hasPermissionToAddSpaceChild && canCreateSpaces;
 
-    // Check if this is a GOV space
-    const isGOVSpace = activeSpace?.name === "GOV";
+    // Check if this is a GOV space (more comprehensive check)
+    const isGOVSpace = activeSpace?.name === "GOV" || activeSpace?.getCanonicalAlias()?.includes("gov") || activeSpace?.roomId.includes("gov");
 
     // If the user can't do anything on the plus menu, don't show it. This aims to target the
     // plus menu shown on the Home tab primarily: the user has options to use the menu for

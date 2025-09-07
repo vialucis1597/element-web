@@ -102,8 +102,11 @@ const SpaceLandingAddButton: React.FC<{ space: Room }> = ({ space }) => {
     const videoRoomsEnabled = useFeatureEnabled("feature_video_rooms");
     const elementCallVideoRoomsEnabled = useFeatureEnabled("feature_element_call_video_rooms");
 
-    // Check if this is a GOV space
-    const isGOVSpace = space.name === "GOV";
+    // Check if this is a GOV space (more comprehensive check)
+    const isGOVSpace = space.name === "GOV" || space.getCanonicalAlias()?.includes("gov") || space.roomId.includes("gov");
+    
+    // Debug logging
+    console.log("SpaceLandingAddButton - Space name:", space.name, "isGOVSpace:", isGOVSpace);
 
     let contextMenu: JSX.Element | null = null;
     if (menuDisplayed) {
