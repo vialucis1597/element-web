@@ -138,10 +138,15 @@ export default class CreateRoomDialog extends React.Component<IProps, IState> {
         const createOpts: IOpts["createOpts"] = (opts.createOpts = {});
         opts.roomType = this.props.type;
         
-        // Add proposal numbering for GOV space
+        // Add numbering/prefix for GOV space
         if (this.isGOVSpace()) {
-            const proposalNumber = this.getNextProposalNumber();
-            createOpts.name = `Proposal #${proposalNumber}: ${this.state.name}`;
+            if (this.state.agendaType === 'proposal') {
+                const proposalNumber = this.getNextProposalNumber();
+                createOpts.name = `Proposal #${proposalNumber}: ${this.state.name}`;
+            } else {
+                // Discussion type - no numbering
+                createOpts.name = `Discussion: ${this.state.name}`;
+            }
         } else {
             createOpts.name = this.state.name;
         }
@@ -185,11 +190,12 @@ export default class CreateRoomDialog extends React.Component<IProps, IState> {
             createOpts.visibility = this.state.isPublicKnockRoom ? Visibility.Public : Visibility.Private;
         }
 
-        // Add GOV space proposal information for post-creation processing
+        // Add GOV space agenda information for post-creation processing
         if (this.isGOVSpace()) {
-            (opts as any).govProposal = {
+            (opts as any).govAgenda = {
                 name: this.state.name,
                 fullDescription: this.state.topic,
+                type: this.state.agendaType, // 'proposal' or 'discussion'
             };
             
             // Set avatar if provided

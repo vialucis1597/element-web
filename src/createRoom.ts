@@ -371,27 +371,30 @@ export default async function createRoom(client: MatrixClient, opts: IOpts): Pro
                     });
                 }
 
-                // Handle GOV space proposal creation
-                if ((opts as any).govProposal) {
-                    const govProposal = (opts as any).govProposal;
+                // Handle GOV space agenda creation
+                if ((opts as any).govAgenda) {
+                    const govAgenda = (opts as any).govAgenda;
                     // Wait a bit for the room to be fully created and synced
                     setTimeout(async () => {
                         try {
                             const room = client.getRoom(roomId);
                             if (room) {
-                                // Send proposal message (without auto-pinning)
-                                const proposalContent = {
+                                // Determine message prefix based on agenda type
+                                const messagePrefix = govAgenda.type === 'discussion' ? 'Topic' : 'Proposal';
+                                
+                                // Send agenda message (without auto-pinning)
+                                const agendaContent = {
                                     msgtype: "m.text",
-                                    body: `**Proposal: ${govProposal.name}**\n\n${govProposal.fullDescription}`,
+                                    body: `**${messagePrefix}: ${govAgenda.name}**\n\n${govAgenda.fullDescription}`,
                                     format: "org.matrix.custom.html",
-                                    formatted_body: `<h3>Proposal: ${govProposal.name}</h3><p>${govProposal.fullDescription.replace(/\n/g, '<br>')}</p>`,
+                                    formatted_body: `<h3>${messagePrefix}: ${govAgenda.name}</h3><p>${govAgenda.fullDescription.replace(/\n/g, '<br>')}</p>`,
                                 };
                                 
-                                await client.sendMessage(roomId, proposalContent);
-                                logger.info("Successfully sent GOV proposal message");
+                                await client.sendMessage(roomId, agendaContent);
+                                logger.info(`Successfully sent GOV ${govAgenda.type} message`);
                             }
                         } catch (error) {
-                            logger.error("Failed to send GOV proposal message:", error);
+                            logger.error(`Failed to send GOV ${govAgenda.type} message:`, error);
                         }
                     }, 2000); // Wait 2 seconds for room sync
                 }

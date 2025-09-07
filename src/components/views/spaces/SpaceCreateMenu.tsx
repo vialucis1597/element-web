@@ -149,7 +149,7 @@ const createSubspaces = async (client: MatrixClient, parentRoomId: string, daoNa
         });
 
         // Create Ledger room for blockchain-style transaction recording
-        await createRoom(client, {
+        const ledgerRoomId = await createRoom(client, {
             createOpts: {
                 name: `ledger`,
                 preset: Preset.PublicChat,
@@ -170,6 +170,25 @@ const createSubspaces = async (client: MatrixClient, parentRoomId: string, daoNa
             parentSpace,
             joinRule: JoinRule.Public,
         });
+
+        // Move ledger room to Low priority
+        if (ledgerRoomId) {
+            setTimeout(async () => {
+                try {
+                    const { tagRoom } = await import("../../../utils/room/tagRoom");
+                    const { DefaultTagID } = await import("../../../stores/room-list/models");
+                    
+                    const ledgerRoom = client.getRoom(ledgerRoomId);
+                    if (ledgerRoom) {
+                        // Use the tagRoom utility function which handles the Low priority tagging
+                        tagRoom(ledgerRoom, DefaultTagID.LowPriority);
+                        logger.info("Successfully moved ledger room to Low priority");
+                    }
+                } catch (error) {
+                    logger.error("Failed to move ledger room to Low priority:", error);
+                }
+            }, 3000); // Wait 3 seconds for room to be fully synced
+        }
     } catch (error) {
         logger.error("Failed to create subspaces:", error);
     }
