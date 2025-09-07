@@ -425,7 +425,8 @@ export default async function createRoom(client: MatrixClient, opts: IOpts): Pro
                                         
                                         if (pollChoices.length >= 2) {
                                             // Calculate poll end time
-                                            const duration = govAgenda.votingSystem.duration || 7; // Default 7 days
+                                            const duration = govAgenda.votingSystem.duration !== undefined ? govAgenda.votingSystem.duration : 7; // Default 7 days
+                                            logger.info(`Received voting duration: ${govAgenda.votingSystem.duration}, using: ${duration}`);
                                             let endTime: number;
                                             let durationText: string;
                                             
@@ -454,8 +455,53 @@ export default async function createRoom(client: MatrixClient, opts: IOpts): Pro
                                             // Send poll as a separate message after the agenda
                                             setTimeout(async () => {
                                                 try {
-                                                    await client.sendEvent(roomId, pollEvent.type, pollEvent.content);
+                                                    const pollEventResult = await client.sendEvent(roomId, pollEvent.type, pollEvent.content);
+                                                    const pollEventId = pollEventResult.event_id;
                                                     logger.info(`Successfully sent poll for GOV ${govAgenda.type} with ${durationText} duration`);
+                                                    
+                                                    // Set up automatic poll closure
+                                                    const timeUntilEnd = endTime - Date.now();
+                                                    logger.info(`Setting up poll auto-end: timeUntilEnd=${timeUntilEnd}ms, endTime=${new Date(endTime)}, pollEventId=${pollEventId}`);
+                                                    
+                                                    if (timeUntilEnd > 0) {
+                                                        logger.info(`Scheduling poll end in ${timeUntilEnd}ms (${durationText})`);
+                                                        setTimeout(async () => {
+                                                            try {
+                                                                logger.info(`Attempting to end poll ${pollEventId} - time reached`);
+                                                                
+                                                                // Import poll end utilities
+                                                                const { PollEndEvent } = await import("matrix-js-sdk/src/extensible_events_v1/PollEndEvent");
+                                                                const { TimelineEvents } = await import("matrix-js-sdk/src/matrix");
+                                                                
+                                                                // Get the poll from the room to check for responses
+                                                                const room = client.getRoom(roomId);
+                                                                if (!room) {
+                                                                    throw new Error("Room not found");
+                                                                }
+                                                                
+                                                                // Wait a bit for the poll to be processed by the room
+                                                                await new Promise(resolve => setTimeout(resolve, 1000));
+                                                                
+                                                                // Create poll end event with simple message
+                                                                const endMessage = "Voting period has ended";
+                                                                const pollEndEvent = PollEndEvent.from(pollEventId, endMessage).serialize();
+                                                                logger.info(`Created poll end event:`, pollEndEvent);
+                                                                
+                                                                // Send poll end event using the same method as EndPollDialog
+                                                                const endResult = await client.sendEvent(
+                                                                    roomId,
+                                                                    pollEndEvent.type as keyof TimelineEvents,
+                                                                    pollEndEvent.content as TimelineEvents[keyof TimelineEvents],
+                                                                );
+                                                                logger.info(`Successfully ended poll for GOV ${govAgenda.type} after ${durationText}. End event ID: ${endResult.event_id}`);
+                                                            } catch (endError) {
+                                                                logger.error(`Failed to end poll for GOV ${govAgenda.type}:`, endError);
+                                                                console.error("Poll end error details:", endError);
+                                                            }
+                                                        }, timeUntilEnd);
+                                                    } else {
+                                                        logger.warn(`Poll end time already passed: timeUntilEnd=${timeUntilEnd}ms`);
+                                                    }
                                                 } catch (pollError) {
                                                     logger.error(`Failed to send poll for GOV ${govAgenda.type}:`, pollError);
                                                 }
