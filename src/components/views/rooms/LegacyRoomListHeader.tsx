@@ -150,7 +150,7 @@ const LegacyRoomListHeader: React.FC<IProps> = ({ onVisibilityChange }) => {
     const canAddSubRooms = hasPermissionToAddSpaceChild && canCreateRooms;
     const canAddSubSpaces = hasPermissionToAddSpaceChild && canCreateSpaces;
 
-    // Check if this is a GOV space (more comprehensive check)
+    // Check if this is a GOV space (for menu text customization)
     const isGOVSpace = activeSpace?.name === "GOV" || activeSpace?.getCanonicalAlias()?.includes("gov") || activeSpace?.roomId.includes("gov");
 
     // If the user can't do anything on the plus menu, don't show it. This aims to target the
@@ -252,36 +252,7 @@ const LegacyRoomListHeader: React.FC<IProps> = ({ onVisibilityChange }) => {
                             PosthogTrackers.trackInteraction("WebRoomListHeaderPlusMenuExploreRoomsItem", e);
                         }}
                     />
-                    {!isGOVSpace && (
-                        <IconizedContextMenuOption
-                            label={_t("action|add_existing_room")}
-                            iconClassName="mx_LegacyRoomListHeader_iconPlus"
-                            onClick={(e) => {
-                                e.preventDefault();
-                                e.stopPropagation();
-                                showAddExistingRooms(activeSpace);
-                                closePlusMenu();
-                            }}
-                            disabled={!canAddSubRooms}
-                            title={!canAddSubRooms ? _t("spaces|error_no_permission_add_room") : undefined}
-                        />
-                    )}
-                    {canCreateSpaces && !isGOVSpace && (
-                        <IconizedContextMenuOption
-                            label={_t("room_list|add_space_label")}
-                            iconClassName="mx_LegacyRoomListHeader_iconPlus"
-                            onClick={(e) => {
-                                e.preventDefault();
-                                e.stopPropagation();
-                                showCreateNewSubspace(activeSpace);
-                                closePlusMenu();
-                            }}
-                            disabled={!canAddSubSpaces}
-                            title={!canAddSubSpaces ? _t("spaces|error_no_permission_add_space") : undefined}
-                        >
-                            <BetaPill />
-                        </IconizedContextMenuOption>
-                    )}
+                    {/* Removed "Add existing room" and "Add space" options for all spaces */}
                 </IconizedContextMenuOptionList>
             </IconizedContextMenu>
         );
