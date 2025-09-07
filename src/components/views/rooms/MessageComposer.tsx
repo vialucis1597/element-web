@@ -147,6 +147,9 @@ export class MessageComposer extends React.Component<IProps, IState> {
             }
         }
 
+        // Check if this is a GOV space proposal room (hide poll button if so)
+        const isGOVProposalRoom = this.isGOVProposalRoom();
+
         this.state = {
             isComposerEmpty: initialComposerContent?.length === 0,
             composerContent: initialComposerContent,
@@ -155,7 +158,7 @@ export class MessageComposer extends React.Component<IProps, IState> {
             isMenuOpen: false,
             isStickerPickerOpen: false,
             showStickersButton: SettingsStore.getValue("MessageComposerInput.showStickersButton"),
-            showPollsButton: SettingsStore.getValue("MessageComposerInput.showPollsButton"),
+            showPollsButton: SettingsStore.getValue("MessageComposerInput.showPollsButton") && !isGOVProposalRoom,
             isWysiwygLabEnabled: isWysiwygLabEnabled,
             isRichTextEnabled: isRichTextEnabled,
             initialComposerContent: initialComposerContent,
@@ -170,6 +173,15 @@ export class MessageComposer extends React.Component<IProps, IState> {
             key += `_${this.props.relation.event_id}`;
         }
         return key;
+    }
+
+    private isGOVProposalRoom(): boolean {
+        const room = this.props.room;
+        if (!room) return false;
+        
+        const roomName = room.name;
+        // Only hide poll menu for Proposal rooms, not Discussion rooms
+        return roomName?.startsWith("Proposal #");
     }
 
     private restoreWysiwygEditorState(): WysiwygComposerState | undefined {

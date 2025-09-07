@@ -97,6 +97,14 @@ interface IState {
      * Images embedded in the description for GOV spaces
      */
     embeddedImages: Array<{id: string, file: File, url: string}>;
+    /**
+     * Voting system configuration for GOV proposals
+     */
+    votingSystem: {
+        type: 'basic' | 'single-choice';
+        choices: string[];
+        duration: number; // Duration in days (1-21)
+    };
 }
 
 export default class CreateRoomDialog extends React.Component<IProps, IState> {
@@ -135,6 +143,11 @@ export default class CreateRoomDialog extends React.Component<IProps, IState> {
             avatar: undefined,
             agendaType: 'proposal',
             embeddedImages: [],
+            votingSystem: {
+                type: 'basic',
+                choices: ['For', 'Against', 'Abstain'],
+                duration: 7 // Default 7 days
+            },
         };
     }
 
@@ -202,6 +215,7 @@ export default class CreateRoomDialog extends React.Component<IProps, IState> {
                 fullDescription: this.state.topic,
                 type: this.state.agendaType, // 'proposal' or 'discussion'
                 embeddedImages: this.state.embeddedImages, // Include embedded images
+                votingSystem: this.state.agendaType === 'proposal' ? this.state.votingSystem : undefined, // Only for proposals
             };
             
             // Set avatar if provided
@@ -383,6 +397,58 @@ export default class CreateRoomDialog extends React.Component<IProps, IState> {
             textarea.selectionStart = textarea.selectionEnd = start + placeholder.length;
             textarea.focus();
         }, 0);
+    };
+
+    private onVotingSystemChange = (type: 'basic' | 'single-choice'): void => {
+        const defaultChoices = type === 'basic' 
+            ? ['For', 'Against', 'Abstain']
+            : ['For'];
+        
+        this.setState({
+            votingSystem: {
+                ...this.state.votingSystem,
+                type,
+                choices: defaultChoices
+            }
+        });
+    };
+
+    private onVotingDurationChange = (duration: number): void => {
+        this.setState({
+            votingSystem: {
+                ...this.state.votingSystem,
+                duration
+            }
+        });
+    };
+
+    private onVotingChoiceChange = (index: number, value: string): void => {
+        this.setState(prevState => ({
+            votingSystem: {
+                ...prevState.votingSystem,
+                choices: prevState.votingSystem.choices.map((choice, i) => 
+                    i === index ? value : choice
+                )
+            }
+        }));
+    };
+
+    private addVotingChoice = (): void => {
+        this.setState(prevState => ({
+            votingSystem: {
+                ...prevState.votingSystem,
+                choices: [...prevState.votingSystem.choices, '']
+            }
+        }));
+    };
+
+    private removeVotingChoice = (index: number): void => {
+        this.setState(prevState => ({
+            votingSystem: {
+                ...prevState.votingSystem,
+                choices: prevState.votingSystem.choices.filter((_, i) => i !== index)
+            }
+        }));
     };
 
     private static validateRoomName = withValidation({
@@ -638,9 +704,9 @@ export default class CreateRoomDialog extends React.Component<IProps, IState> {
                             rows={this.isGOVSpace() ? 12 : undefined}
                         />
                         {this.isGOVSpace() && (
-                            <div className="mx_CreateRoomDialog_imageUpload">
-                                <div className="mx_CreateRoomDialog_imageUpload_header">
-                                    <label className="mx_CreateRoomDialog_imageUpload_label">Images</label>
+                            <div className="mx_CreateRoomDialog_section mx_CreateRoomDialog_imageUpload">
+                                <div className="mx_CreateRoomDialog_section_header">
+                                    <h3 className="mx_CreateRoomDialog_section_title">Images</h3>
                                     <input
                                         type="file"
                                         accept="image/*"
@@ -651,6 +717,7 @@ export default class CreateRoomDialog extends React.Component<IProps, IState> {
                                     <AccessibleButton
                                         onClick={() => document.getElementById('imageUploadInput')?.click()}
                                         className="mx_CreateRoomDialog_imageUpload_button"
+                                        kind="primary"
                                     >
                                         📷 Add Image
                                     </AccessibleButton>
@@ -659,21 +726,25 @@ export default class CreateRoomDialog extends React.Component<IProps, IState> {
                                     <div className="mx_CreateRoomDialog_imageUpload_list">
                                         {this.state.embeddedImages.map((image) => (
                                             <div key={image.id} className="mx_CreateRoomDialog_imageUpload_item">
-                                                <img
-                                                    src={image.url}
-                                                    alt="Uploaded"
-                                                    className="mx_CreateRoomDialog_imageUpload_preview"
-                                                />
+                                                <div className="mx_CreateRoomDialog_imageUpload_preview_container">
+                                                    <img
+                                                        src={image.url}
+                                                        alt="Uploaded"
+                                                        className="mx_CreateRoomDialog_imageUpload_preview"
+                                                    />
+                                                </div>
                                                 <div className="mx_CreateRoomDialog_imageUpload_actions">
                                                     <AccessibleButton
                                                         onClick={() => this.insertImagePlaceholder(image.id)}
                                                         className="mx_CreateRoomDialog_imageUpload_insert"
+                                                        kind="secondary"
                                                     >
                                                         Insert
                                                     </AccessibleButton>
                                                     <AccessibleButton
                                                         onClick={() => this.onRemoveImage(image.id)}
                                                         className="mx_CreateRoomDialog_imageUpload_remove"
+                                                        kind="danger"
                                                     >
                                                         Remove
                                                     </AccessibleButton>
@@ -683,7 +754,115 @@ export default class CreateRoomDialog extends React.Component<IProps, IState> {
                                     </div>
                                 )}
                                 <div className="mx_CreateRoomDialog_imageUpload_help">
+                                    <span className="mx_CreateRoomDialog_help_icon">💡</span>
                                     Upload images and click "Insert" to add them to your description at the cursor position.
+                                </div>
+                            </div>
+                        )}
+                        {this.isGOVSpace() && this.state.agendaType === 'proposal' && (
+                            <div className="mx_CreateRoomDialog_section mx_CreateRoomDialog_votingSystem">
+                                <div className="mx_CreateRoomDialog_section_header">
+                                    <h3 className="mx_CreateRoomDialog_section_title">Voting System</h3>
+                                    <div className="mx_CreateRoomDialog_votingSystem_type_badge">
+                                        {this.state.votingSystem.type === 'basic' ? '🗳️ Basic' : '📊 Single Choice'}
+                                    </div>
+                                </div>
+                                <div className="mx_CreateRoomDialog_votingSystem_content">
+                                    <div className="mx_CreateRoomDialog_votingSystem_settings">
+                                        <div className="mx_CreateRoomDialog_votingSystem_selector">
+                                            <Field
+                                                element="select"
+                                                value={this.state.votingSystem.type}
+                                                onChange={(e: React.ChangeEvent<HTMLSelectElement>) => 
+                                                    this.onVotingSystemChange(e.target.value as 'basic' | 'single-choice')
+                                                }
+                                                className="mx_CreateRoomDialog_votingSystem_dropdown"
+                                                label="Voting Type"
+                                            >
+                                                <option value="basic">Basic voting</option>
+                                                <option value="single-choice">Single choice voting</option>
+                                            </Field>
+                                        </div>
+                                        <div className="mx_CreateRoomDialog_votingSystem_duration">
+                                            <Field
+                                                element="select"
+                                                value={this.state.votingSystem.duration.toString()}
+                                                onChange={(e: React.ChangeEvent<HTMLSelectElement>) => 
+                                                    this.onVotingDurationChange(parseInt(e.target.value))
+                                                }
+                                                className="mx_CreateRoomDialog_votingSystem_duration_dropdown"
+                                                label="Voting Duration"
+                                            >
+                                                <option value={0}>10 seconds</option>
+                                                {Array.from({length: 21}, (_, i) => i + 1).map(days => (
+                                                    <option key={days} value={days}>
+                                                        {days} day{days !== 1 ? 's' : ''}
+                                                    </option>
+                                                ))}
+                                            </Field>
+                                        </div>
+                                    </div>
+                                    <div className="mx_CreateRoomDialog_votingSystem_choices">
+                                        <h4 className="mx_CreateRoomDialog_votingSystem_choicesTitle">Voting Options</h4>
+                                        <div className="mx_CreateRoomDialog_votingSystem_choicesList">
+                                            {this.state.votingSystem.choices.map((choice, index) => (
+                                                <div key={index} className="mx_CreateRoomDialog_votingSystem_choiceItem">
+                                                    <div className="mx_CreateRoomDialog_votingSystem_choiceIcon">
+                                                        {this.state.votingSystem.type === 'basic' ? (
+                                                            <>
+                                                                {index === 0 && <span className="mx_CreateRoomDialog_votingSystem_icon mx_CreateRoomDialog_votingSystem_icon_for">✓</span>}
+                                                                {index === 1 && <span className="mx_CreateRoomDialog_votingSystem_icon mx_CreateRoomDialog_votingSystem_icon_against">✗</span>}
+                                                                {index === 2 && <span className="mx_CreateRoomDialog_votingSystem_icon mx_CreateRoomDialog_votingSystem_icon_abstain">●</span>}
+                                                            </>
+                                                        ) : (
+                                                            <span className="mx_CreateRoomDialog_votingSystem_icon mx_CreateRoomDialog_votingSystem_icon_option">
+                                                                {index + 1}
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                    <Field
+                                                        type="text"
+                                                        value={choice}
+                                                        onChange={(e: React.ChangeEvent<HTMLInputElement>) => 
+                                                            this.onVotingChoiceChange(index, e.target.value)
+                                                        }
+                                                        className="mx_CreateRoomDialog_votingSystem_choiceInput"
+                                                        placeholder={this.state.votingSystem.type === 'basic' 
+                                                            ? ['For', 'Against', 'Abstain'][index] || 'Enter choice'
+                                                            : `Option ${index + 1}`
+                                                        }
+                                                    />
+                                                    {this.state.votingSystem.type === 'single-choice' && (
+                                                        <AccessibleButton
+                                                            onClick={() => this.removeVotingChoice(index)}
+                                                            className="mx_CreateRoomDialog_votingSystem_removeChoice"
+                                                            disabled={this.state.votingSystem.choices.length <= 1}
+                                                            kind="danger"
+                                                            title="Remove option"
+                                                        >
+                                                            🗑️
+                                                        </AccessibleButton>
+                                                    )}
+                                                </div>
+                                            ))}
+                                        </div>
+                                        {this.state.votingSystem.type === 'single-choice' && (
+                                            <AccessibleButton
+                                                onClick={this.addVotingChoice}
+                                                className="mx_CreateRoomDialog_votingSystem_addChoice"
+                                                kind="secondary"
+                                            >
+                                                ➕ Add choice
+                                            </AccessibleButton>
+                                        )}
+                                    </div>
+                                    <div className="mx_CreateRoomDialog_votingSystem_info">
+                                        <span className="mx_CreateRoomDialog_help_icon">ℹ️</span>
+                                        {this.state.votingSystem.type === 'basic' 
+                                            ? `Basic voting with standard For/Against/Abstain options. Voting will be open for ${this.state.votingSystem.duration === 0 ? '10 seconds' : `${this.state.votingSystem.duration} day${this.state.votingSystem.duration !== 1 ? 's' : ''}`}.`
+                                            : `Custom voting options. Voters can choose from your defined options. Voting will be open for ${this.state.votingSystem.duration === 0 ? '10 seconds' : `${this.state.votingSystem.duration} day${this.state.votingSystem.duration !== 1 ? 's' : ''}`}.`
+                                        }
+                                    </div>
                                 </div>
                             </div>
                         )}

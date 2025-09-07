@@ -406,6 +406,65 @@ export default async function createRoom(client: MatrixClient, opts: IOpts): Pro
                                     processedDescription = processedDescription.replace(placeholder, `[Image: ${mxcUrl}]`);
                                     processedHtmlDescription = processedHtmlDescription.replace(placeholder, imageHtml);
                                 }
+
+                                // Create and send poll if it's a proposal with voting system
+                                if (govAgenda.votingSystem && govAgenda.type === 'proposal') {
+                                    try {
+                                        // Import poll creation utilities
+                                        const { PollStartEvent } = await import("matrix-js-sdk/src/extensible_events_v1/PollStartEvent");
+                                        const { M_POLL_KIND_DISCLOSED, M_POLL_KIND_UNDISCLOSED } = await import("matrix-js-sdk/src/matrix");
+                                        
+                                        // Use undisclosed (secret) voting for all polls
+                                        const pollKind = M_POLL_KIND_UNDISCLOSED;
+                                        
+                                        // Create poll question
+                                        const pollQuestion = `Vote on: ${govAgenda.name}`;
+                                        
+                                        // Filter out empty choices
+                                        const pollChoices = govAgenda.votingSystem.choices.filter((choice: string) => choice.trim().length > 0);
+                                        
+                                        if (pollChoices.length >= 2) {
+                                            // Calculate poll end time
+                                            const duration = govAgenda.votingSystem.duration || 7; // Default 7 days
+                                            let endTime: number;
+                                            let durationText: string;
+                                            
+                                            if (duration === 0) {
+                                                // 10 seconds option
+                                                endTime = Date.now() + (10 * 1000);
+                                                durationText = "10 seconds";
+                                            } else {
+                                                // Days option
+                                                endTime = Date.now() + (duration * 24 * 60 * 60 * 1000);
+                                                durationText = `${duration} day${duration !== 1 ? 's' : ''}`;
+                                            }
+                                            
+                                            // Create poll question with only voting period info (remove "Vote on:" prefix)
+                                            const endDate = new Date(endTime);
+                                            const pollQuestionWithCountdown = `Voting Period: ${durationText}\nEnds: ${endDate.toLocaleDateString()} at ${endDate.toLocaleTimeString()}`;
+                                            
+                                            // Create poll event with end time
+                                            const pollEvent = PollStartEvent.from(
+                                                pollQuestionWithCountdown,
+                                                pollChoices,
+                                                pollKind.name,
+                                                endTime // Add end time for automatic poll closure
+                                            ).serialize();
+                                            
+                                            // Send poll as a separate message after the agenda
+                                            setTimeout(async () => {
+                                                try {
+                                                    await client.sendEvent(roomId, pollEvent.type, pollEvent.content);
+                                                    logger.info(`Successfully sent poll for GOV ${govAgenda.type} with ${durationText} duration`);
+                                                } catch (pollError) {
+                                                    logger.error(`Failed to send poll for GOV ${govAgenda.type}:`, pollError);
+                                                }
+                                            }, 50); // Send poll 50ms after the main message
+                                        }
+                                    } catch (pollError) {
+                                        logger.error(`Failed to create poll for GOV ${govAgenda.type}:`, pollError);
+                                    }
+                                }
                                 
                                 // Send agenda message (without auto-pinning)
                                 const agendaContent = {
