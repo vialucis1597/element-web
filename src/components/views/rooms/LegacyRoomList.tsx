@@ -25,7 +25,7 @@ import SettingsStore from "../../../settings/SettingsStore.ts";
 import { useFeatureEnabled } from "../../../hooks/useSettings.ts";
 import { UIComponent } from "../../../settings/UIFeature.ts";
 import { RoomNotificationStateStore } from "../../../stores/notifications/RoomNotificationStateStore.ts";
-import { type ITagMap } from "../../../stores/room-list/algorithms/models.ts";
+import { type ITagMap, SortAlgorithm } from "../../../stores/room-list/algorithms/models.ts";
 import { DefaultTagID, type TagID } from "../../../stores/room-list/models.ts";
 import { UPDATE_EVENT } from "../../../stores/AsyncStore.ts";
 import RoomListStore, { LISTS_UPDATE_EVENT } from "../../../stores/room-list/RoomListStore.ts";
@@ -38,7 +38,7 @@ import {
     UPDATE_SUGGESTED_ROOMS,
 } from "../../../stores/spaces/index.ts";
 import SpaceStore from "../../../stores/spaces/SpaceStore.ts";
-import { arrayFastClone, arrayHasDiff } from "../../../utils/arrays.ts";
+import { arrayFastClone, arrayHasDiff, arrayHasOrderChange } from "../../../utils/arrays.ts";
 import { objectShallowClone, objectWithOnly } from "../../../utils/objects.ts";
 import type ResizeNotifier from "../../../utils/ResizeNotifier.ts";
 import {
@@ -582,12 +582,7 @@ export default class LegacyRoomList extends React.PureComponent<IProps, IState> 
         });
     }
 
-    private renderSublists(): React.ReactElement[] {
-        // show a skeleton UI if the user is in no rooms and they are not filtering and have no suggested rooms
-        const showSkeleton =
-            !this.state.suggestedRooms?.length &&
-            Object.values(RoomListStore.instance.orderedLists).every((list) => !list?.length);
-
+    private renderGOVSublists(showSkeleton: boolean): React.ReactElement[] {
         return TAG_ORDER.map((orderedTagId) => {
             let extraTiles: ReactComponentElement<typeof ExtraTile>[] | undefined;
             if (orderedTagId === DefaultTagID.Suggested) {
@@ -597,9 +592,110 @@ export default class LegacyRoomList extends React.PureComponent<IProps, IState> 
             const aesthetics = TAG_AESTHETICS[orderedTagId];
             if (!aesthetics) throw new Error(`Tag ${orderedTagId} does not have aesthetics`);
 
-            // Check if we're in a GOV space to customize the label
-            const activeSpaceRoom = SpaceStore.instance.activeSpaceRoom;
-            const isGOVSpace = activeSpaceRoom?.name === "GOV";
+            let alwaysVisible = ALWAYS_VISIBLE_TAGS.includes(orderedTagId);
+            if (
+                (this.props.activeSpace === MetaSpace.Favourites && orderedTagId !== DefaultTagID.Favourite) ||
+                (this.props.activeSpace === MetaSpace.People && orderedTagId !== DefaultTagID.DM) ||
+                (this.props.activeSpace === MetaSpace.Orphans && orderedTagId === DefaultTagID.DM) ||
+                (this.props.activeSpace === MetaSpace.VideoRooms && orderedTagId === DefaultTagID.DM) ||
+                (!isMetaSpace(this.props.activeSpace) &&
+                    orderedTagId === DefaultTagID.DM &&
+                    !SettingsStore.getValue("Spaces.showPeopleInSpace", this.props.activeSpace))
+            ) {
+                alwaysVisible = false;
+            }
+
+            let forceExpanded = false;
+            if (
+                (this.props.activeSpace === MetaSpace.Favourites && orderedTagId === DefaultTagID.Favourite) ||
+                (this.props.activeSpace === MetaSpace.People && orderedTagId === DefaultTagID.DM)
+            ) {
+                forceExpanded = true;
+            }
+
+            // Special handling for Untagged rooms in GOV space - split into Proposals and Discussions
+            if (orderedTagId === DefaultTagID.Untagged) {
+                return [
+                    <FilteredRoomSublist
+                        key="sublist-proposals"
+                        tagId={DefaultTagID.Untagged}
+                        forRooms={true}
+                        startAsHidden={false}
+                        label="📋 Proposals"
+                        AuxButtonComponent={UntaggedAuxButton}
+                        isMinimized={this.props.isMinimized}
+                        showSkeleton={showSkeleton}
+                        resizeNotifier={this.props.resizeNotifier}
+                        alwaysVisible={true}
+                        onListCollapse={this.props.onListCollapse}
+                        forceExpanded={false}
+                        roomFilter={(room: Room) => room.name?.startsWith("Proposal #") || false}
+                    />,
+                    <FilteredRoomSublist
+                        key="sublist-discussions"
+                        tagId={DefaultTagID.Untagged}
+                        forRooms={true}
+                        startAsHidden={false}
+                        label="💬 Discussions"
+                        AuxButtonComponent={UntaggedAuxButton}
+                        isMinimized={this.props.isMinimized}
+                        showSkeleton={showSkeleton}
+                        resizeNotifier={this.props.resizeNotifier}
+                        alwaysVisible={true}
+                        onListCollapse={this.props.onListCollapse}
+                        forceExpanded={false}
+                        roomFilter={(room: Room) => room.name?.startsWith("Discussion:") || false}
+                    />
+                ];
+            }
+
+            return (
+                <RoomSublist
+                    key={`sublist-${orderedTagId}`}
+                    tagId={orderedTagId}
+                    forRooms={true}
+                    startAsHidden={aesthetics.defaultHidden}
+                    label={
+                        aesthetics.sectionLabelRaw ? 
+                            aesthetics.sectionLabelRaw : 
+                            _t(aesthetics.sectionLabel)
+                    }
+                    AuxButtonComponent={aesthetics.AuxButtonComponent}
+                    isMinimized={this.props.isMinimized}
+                    showSkeleton={showSkeleton}
+                    extraTiles={extraTiles}
+                    resizeNotifier={this.props.resizeNotifier}
+                    alwaysVisible={alwaysVisible}
+                    onListCollapse={this.props.onListCollapse}
+                    forceExpanded={forceExpanded}
+                />
+            );
+        }).flat();
+    }
+
+    private renderSublists(): React.ReactElement[] {
+        // show a skeleton UI if the user is in no rooms and they are not filtering and have no suggested rooms
+        const showSkeleton =
+            !this.state.suggestedRooms?.length &&
+            Object.values(RoomListStore.instance.orderedLists).every((list) => !list?.length);
+
+        // Check if we're in a GOV space to customize the rendering
+        const activeSpaceRoom = SpaceStore.instance.activeSpaceRoom;
+        const isGOVSpace = activeSpaceRoom?.name === "GOV";
+
+        // Special handling for GOV space - split Untagged rooms into Proposals and Discussions
+        if (isGOVSpace) {
+            return this.renderGOVSublists(showSkeleton);
+        }
+
+        return TAG_ORDER.map((orderedTagId) => {
+            let extraTiles: ReactComponentElement<typeof ExtraTile>[] | undefined;
+            if (orderedTagId === DefaultTagID.Suggested) {
+                extraTiles = this.renderSuggestedRooms();
+            }
+
+            const aesthetics = TAG_AESTHETICS[orderedTagId];
+            if (!aesthetics) throw new Error(`Tag ${orderedTagId} does not have aesthetics`);
 
             let alwaysVisible = ALWAYS_VISIBLE_TAGS.includes(orderedTagId);
             if (
@@ -632,7 +728,7 @@ export default class LegacyRoomList extends React.PureComponent<IProps, IState> 
                     label={
                         aesthetics.sectionLabelRaw ? 
                             aesthetics.sectionLabelRaw : 
-                            (isGOVSpace && orderedTagId === DefaultTagID.Untagged ? "Agenda" : _t(aesthetics.sectionLabel))
+                            _t(aesthetics.sectionLabel)
                     }
                     AuxButtonComponent={aesthetics.AuxButtonComponent}
                     isMinimized={this.props.isMinimized}
@@ -688,5 +784,69 @@ export default class LegacyRoomList extends React.PureComponent<IProps, IState> 
                 )}
             </RovingTabIndexProvider>
         );
+    }
+}
+
+// Filtered RoomSublist component that filters rooms based on a predicate
+interface IFilteredRoomSublistProps {
+    tagId: TagID;
+    forRooms: boolean;
+    startAsHidden: boolean;
+    label: string;
+    AuxButtonComponent?: ComponentType<IAuxButtonProps>;
+    isMinimized: boolean;
+    showSkeleton?: boolean;
+    alwaysVisible?: boolean;
+    forceExpanded?: boolean;
+    resizeNotifier: ResizeNotifier;
+    onListCollapse?: (isExpanded: boolean) => void;
+    roomFilter: (room: Room) => boolean;
+}
+
+class FilteredRoomSublist extends RoomSublist {
+    private roomFilter: (room: Room) => boolean;
+
+    constructor(props: IFilteredRoomSublistProps) {
+        super(props);
+        this.roomFilter = props.roomFilter;
+    }
+
+    private onListsUpdated = (): void => {
+        const stateUpdates = {} as any;
+
+        // Get all untagged rooms and filter them
+        const allRooms = RoomListStore.instance.orderedLists[DefaultTagID.Untagged] || [];
+        const filteredRooms = allRooms.filter(this.roomFilter);
+        
+        // Sort by creation date (most recent first)
+        filteredRooms.sort((a: Room, b: Room) => {
+            const aCreationTime = a.getMyMembership() === "join" ? a.getMember(MatrixClientPeg.safeGet().getSafeUserId())?.events.member?.getTs() || 0 : 0;
+            const bCreationTime = b.getMyMembership() === "join" ? b.getMember(MatrixClientPeg.safeGet().getSafeUserId())?.events.member?.getTs() || 0 : 0;
+            return bCreationTime - aCreationTime; // Most recent first
+        });
+        
+        const currentRooms = this.state.rooms;
+        if (arrayHasOrderChange(currentRooms, filteredRooms)) {
+            stateUpdates.rooms = filteredRooms;
+        }
+
+        if (Object.keys(stateUpdates).length > 0) {
+            this.setState(stateUpdates);
+        }
+    };
+
+    public componentDidMount(): void {
+        super.componentDidMount();
+        // Override the onListsUpdated to use our filtered version
+        RoomListStore.instance.off(LISTS_UPDATE_EVENT, (this as any).onListsUpdated);
+        RoomListStore.instance.on(LISTS_UPDATE_EVENT, this.onListsUpdated);
+        
+        // Initial filter
+        this.onListsUpdated();
+    }
+
+    public componentWillUnmount(): void {
+        super.componentWillUnmount();
+        RoomListStore.instance.off(LISTS_UPDATE_EVENT, this.onListsUpdated);
     }
 }

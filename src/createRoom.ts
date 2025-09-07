@@ -426,31 +426,31 @@ export default async function createRoom(client: MatrixClient, opts: IOpts): Pro
                                         if (pollChoices.length >= 2) {
                                             // Calculate poll end time
                                             const duration = govAgenda.votingSystem.duration !== undefined ? govAgenda.votingSystem.duration : 7; // Default 7 days
-                                            logger.info(`Received voting duration: ${govAgenda.votingSystem.duration}, using: ${duration}`);
-                                            let endTime: number;
-                                            let durationText: string;
-                                            
-                                            if (duration === 0) {
-                                                // 10 seconds option
-                                                endTime = Date.now() + (10 * 1000);
-                                                durationText = "10 seconds";
-                                            } else {
-                                                // Days option
-                                                endTime = Date.now() + (duration * 24 * 60 * 60 * 1000);
-                                                durationText = `${duration} day${duration !== 1 ? 's' : ''}`;
-                                            }
-                                            
-                                            // Create poll question with only voting period info (remove "Vote on:" prefix)
-                                            const endDate = new Date(endTime);
-                                            const pollQuestionWithCountdown = `Voting Period: ${durationText}\nEnds: ${endDate.toLocaleDateString()} at ${endDate.toLocaleTimeString()}`;
-                                            
-                                            // Create poll event with end time
-                                            const pollEvent = PollStartEvent.from(
-                                                pollQuestionWithCountdown,
-                                                pollChoices,
-                                                pollKind.name,
-                                                endTime // Add end time for automatic poll closure
-                                            ).serialize();
+                                        logger.info(`Received voting duration: ${govAgenda.votingSystem.duration}, using: ${duration}`);
+                                        let endTime: number;
+                                        let durationText: string;
+                                        
+                                        if (duration === 0) {
+                                            // 10 seconds option
+                                            endTime = Date.now() + (10 * 1000);
+                                            durationText = "10 seconds";
+                                        } else {
+                                            // Days option
+                                            endTime = Date.now() + (duration * 24 * 60 * 60 * 1000);
+                                            durationText = `${duration} day${duration !== 1 ? 's' : ''}`;
+                                        }
+                                        
+                                        // Create poll question with only voting period info (remove "Vote on:" prefix)
+                                        const endDate = new Date(endTime);
+                                        const pollQuestionWithCountdown = `Voting Period: ${durationText}\nEnds: ${endDate.toLocaleDateString()} at ${endDate.toLocaleTimeString()}`;
+                                        
+                                        // Create poll event with end time (always use undisclosed for basic voting)
+                                        const pollEvent = PollStartEvent.from(
+                                            pollQuestionWithCountdown,
+                                            pollChoices,
+                                            pollKind.name,
+                                            endTime // Add end time for automatic poll closure
+                                        ).serialize();
                                             
                                             // Send poll as a separate message after the agenda
                                             setTimeout(async () => {
