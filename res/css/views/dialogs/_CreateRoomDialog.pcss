@@ -154,3 +154,103 @@ Please see LICENSE files in the repository root for full details.
         margin-bottom: 10px !important;
     }
 }
+
+/* GOV Space Avatar Upload Styles */
+.mx_CreateRoomDialog_avatar {
+    margin: 20px 0;
+}
+
+.mx_CreateRoomDialog_avatar_label {
+    display: block;
+    font-size: 14px;
+    font-weight: 600;
+    margin-bottom: 10px;
+    color: var(--cpd-color-text-primary);
+}
+
+.mx_CreateRoomDialog_avatar_container {
+    border: 2px dashed var(--cpd-color-border-interactive-secondary);
+    border-radius: 8px;
+    padding: 20px;
+    text-align: center;
+    background-color: var(--cpd-color-bg-subtle-secondary);
+}
+
+.mx_CreateRoomDialog_avatar_placeholder {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 120px;
+}
+
+.mx_CreateRoomDialog_avatar_upload {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+    padding: 20px;
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    color: var(--cpd-color-text-secondary);
+    
+    &:hover {
+        color: var(--cpd-color-text-primary);
+        background-color: var(--cpd-color-bg-subtle-primary);
+        border-radius: 8px;
+    }
+}
+
+.mx_CreateRoomDialog_avatar_upload_icon {
+    font-size: 32px;
+}
+
+.mx_CreateRoomDialog_avatar_upload_text {
+    font-size: 14px;
+    font-weight: 500;
+}
+
+.mx_CreateRoomDialog_avatar_preview {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 15px;
+}
+
+.mx_CreateRoomDialog_avatar_image {
+    width: 80px;
+    height: 80px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 3px solid var(--cpd-color-border-interactive-primary);
+}
+
+.mx_CreateRoomDialog_avatar_buttons {
+    display: flex;
+    gap: 10px;
+}
+
+.mx_CreateRoomDialog_avatar_button {
+    padding: 8px 16px;
+    border: 1px solid var(--cpd-color-border-interactive-secondary);
+    border-radius: 6px;
+    background-color: var(--cpd-color-bg-canvas-default);
+    color: var(--cpd-color-text-primary);
+    font-size: 12px;
+    font-weight: 500;
+    cursor: pointer;
+    
+    &:hover {
+        background-color: var(--cpd-color-bg-subtle-secondary);
+    }
+    
+    &.mx_CreateRoomDialog_avatar_button_remove {
+        border-color: var(--cpd-color-border-critical-primary);
+        color: var(--cpd-color-text-critical-primary);
+        
+        &:hover {
+            background-color: var(--cpd-color-bg-critical-subtle);
+        }
+    }
+}

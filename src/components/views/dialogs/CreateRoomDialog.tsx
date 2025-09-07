@@ -15,12 +15,14 @@ import withValidation, { type IFieldState, type IValidationResult } from "../ele
 import { _t } from "../../../languageHandler";
 import { MatrixClientPeg } from "../../../MatrixClientPeg";
 import { checkUserIsAllowedToChangeEncryption, type IOpts } from "../../../createRoom";
+import SpaceStore from "../../../stores/spaces/SpaceStore";
 import Field from "../elements/Field";
 import RoomAliasField from "../elements/RoomAliasField";
 import LabelledToggleSwitch from "../elements/LabelledToggleSwitch";
 import DialogButtons from "../elements/DialogButtons";
 import BaseDialog from "../dialogs/BaseDialog";
 import JoinRuleDropdown from "../elements/JoinRuleDropdown";
+import AccessibleButton from "../elements/AccessibleButton";
 import { getKeyBindingsManager } from "../../../KeyBindingsManager";
 import { KeyBindingAction } from "../../../accessibility/KeyboardShortcuts";
 import { privateShouldBeEncrypted } from "../../../utils/rooms";
@@ -83,6 +85,10 @@ interface IState {
      * The contribution value for DCA rooms.
      */
     contributionValue: string;
+    /**
+     * The room avatar file for GOV proposals.
+     */
+    avatar?: File;
 }
 
 export default class CreateRoomDialog extends React.Component<IProps, IState> {
@@ -98,7 +104,8 @@ export default class CreateRoomDialog extends React.Component<IProps, IState> {
         this.supportsRestricted = !!this.props.parentSpace;
 
         let joinRule = JoinRule.Invite;
-        if (this.props.defaultPublic) {
+        if (this.props.defaultPublic && this.props.parentSpace?.name !== "GOV") {
+            // GOV space proposals should always be restricted/private, not public
             joinRule = JoinRule.Public;
         } else if (this.supportsRestricted) {
             joinRule = JoinRule.Restricted;
@@ -117,6 +124,7 @@ export default class CreateRoomDialog extends React.Component<IProps, IState> {
             nameIsValid: false,
             canChangeEncryption: false,
             contributionValue: "",
+            avatar: undefined,
         };
     }
 
@@ -124,7 +132,14 @@ export default class CreateRoomDialog extends React.Component<IProps, IState> {
         const opts: IOpts = {};
         const createOpts: IOpts["createOpts"] = (opts.createOpts = {});
         opts.roomType = this.props.type;
-        createOpts.name = this.state.name;
+        
+        // Add proposal numbering for GOV space
+        if (this.isGOVSpace()) {
+            const proposalNumber = this.getNextProposalNumber();
+            createOpts.name = `Proposal #${proposalNumber}: ${this.state.name}`;
+        } else {
+            createOpts.name = this.state.name;
+        }
 
         if (this.state.joinRule === JoinRule.Public) {
             createOpts.visibility = Visibility.Public;
@@ -139,6 +154,12 @@ export default class CreateRoomDialog extends React.Component<IProps, IState> {
         if (this.state.topic) {
             if (this.isDCASpace() && this.state.contributionValue) {
                 createOpts.topic = `${this.state.topic}\n\nContribution Value: ${this.state.contributionValue}`;
+            } else if (this.isGOVSpace()) {
+                // For GOV space, truncate description to 150 characters for room topic
+                const truncatedTopic = this.state.topic.length > 150 
+                    ? this.state.topic.substring(0, 150) + "..."
+                    : this.state.topic;
+                createOpts.topic = truncatedTopic;
             } else {
                 createOpts.topic = this.state.topic;
             }
@@ -157,6 +178,19 @@ export default class CreateRoomDialog extends React.Component<IProps, IState> {
         if (this.state.joinRule === JoinRule.Knock) {
             opts.joinRule = JoinRule.Knock;
             createOpts.visibility = this.state.isPublicKnockRoom ? Visibility.Public : Visibility.Private;
+        }
+
+        // Add GOV space proposal information for post-creation processing
+        if (this.isGOVSpace()) {
+            (opts as any).govProposal = {
+                name: this.state.name,
+                fullDescription: this.state.topic,
+            };
+            
+            // Set avatar if provided
+            if (this.state.avatar) {
+                opts.avatar = this.state.avatar;
+            }
         }
 
         return opts;
@@ -260,6 +294,27 @@ export default class CreateRoomDialog extends React.Component<IProps, IState> {
         this.setState({ isPublicKnockRoom });
     };
 
+    private onAvatarChange = (avatar: File | null): void => {
+        this.setState({ avatar: avatar || undefined });
+    };
+
+    private onAvatarClick = (): void => {
+        const fileInput = document.createElement("input");
+        fileInput.type = "file";
+        fileInput.accept = "image/*";
+        fileInput.onchange = (e) => {
+            const file = (e.target as HTMLInputElement).files?.[0];
+            if (file) {
+                this.onAvatarChange(file);
+            }
+        };
+        fileInput.click();
+    };
+
+    private onRemoveAvatar = (): void => {
+        this.setState({ avatar: undefined });
+    };
+
     private static validateRoomName = withValidation({
         rules: [
             {
@@ -276,6 +331,42 @@ export default class CreateRoomDialog extends React.Component<IProps, IState> {
 
     private isGOVSpace(): boolean {
         return this.props.parentSpace?.name === "GOV";
+    }
+
+    private getNextProposalNumber(): number {
+        if (!this.props.parentSpace) return 1;
+        
+        try {
+            // Get all child rooms in the GOV space using SpaceStore
+            const children = SpaceStore.instance.getChildren(this.props.parentSpace.roomId);
+            const childRooms = children.filter(child => !child.isSpaceRoom()); // Exclude subspaces
+            
+            // Find existing proposal numbers
+            const proposalNumbers: number[] = [];
+            childRooms.forEach(child => {
+                const roomName = child.name;
+                const match = roomName.match(/^Proposal #(\d+):/);
+                if (match) {
+                    proposalNumbers.push(parseInt(match[1], 10));
+                }
+            });
+            
+            // Return the next available number
+            if (proposalNumbers.length === 0) return 1;
+            proposalNumbers.sort((a, b) => a - b);
+            
+            // Find the next sequential number
+            for (let i = 1; i <= proposalNumbers.length + 1; i++) {
+                if (!proposalNumbers.includes(i)) {
+                    return i;
+                }
+            }
+            
+            return proposalNumbers.length + 1;
+        } catch (error) {
+            console.error("Error getting next proposal number:", error);
+            return 1; // Fallback to 1 if there's an error
+        }
     }
 
     public render(): React.ReactNode {
@@ -437,6 +528,46 @@ export default class CreateRoomDialog extends React.Component<IProps, IState> {
                             element={this.isGOVSpace() ? "textarea" : undefined}
                             rows={this.isGOVSpace() ? 12 : undefined}
                         />
+                        {this.isGOVSpace() && (
+                            <div className="mx_CreateRoomDialog_avatar">
+                                <label className="mx_CreateRoomDialog_avatar_label">Proposal Avatar</label>
+                                <div className="mx_CreateRoomDialog_avatar_container">
+                                    {this.state.avatar ? (
+                                        <div className="mx_CreateRoomDialog_avatar_preview">
+                                            <img 
+                                                src={URL.createObjectURL(this.state.avatar)} 
+                                                alt="Proposal Avatar"
+                                                className="mx_CreateRoomDialog_avatar_image"
+                                            />
+                                            <div className="mx_CreateRoomDialog_avatar_buttons">
+                                                <AccessibleButton 
+                                                    onClick={this.onAvatarClick}
+                                                    className="mx_CreateRoomDialog_avatar_button"
+                                                >
+                                                    Change Avatar
+                                                </AccessibleButton>
+                                                <AccessibleButton 
+                                                    onClick={this.onRemoveAvatar}
+                                                    className="mx_CreateRoomDialog_avatar_button mx_CreateRoomDialog_avatar_button_remove"
+                                                >
+                                                    Remove
+                                                </AccessibleButton>
+                                            </div>
+                                        </div>
+                                    ) : (
+                                        <div className="mx_CreateRoomDialog_avatar_placeholder">
+                                            <AccessibleButton 
+                                                onClick={this.onAvatarClick}
+                                                className="mx_CreateRoomDialog_avatar_upload"
+                                            >
+                                                <div className="mx_CreateRoomDialog_avatar_upload_icon">📷</div>
+                                                <div className="mx_CreateRoomDialog_avatar_upload_text">Upload Proposal Avatar</div>
+                                            </AccessibleButton>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        )}
                         {this.isDCASpace() && (
                             <Field
                                 label="Contribution Value (B)"
@@ -447,19 +578,21 @@ export default class CreateRoomDialog extends React.Component<IProps, IState> {
                             />
                         )}
 
-                        <JoinRuleDropdown
-                            label={_t("create_room|room_visibility_label")}
-                            labelInvite={_t("create_room|join_rule_invite")}
-                            labelKnock={
-                                this.askToJoinEnabled ? _t("room_settings|security|join_rule_knock") : undefined
-                            }
-                            labelPublic={_t("common|public_room")}
-                            labelRestricted={
-                                this.supportsRestricted ? _t("create_room|join_rule_restricted") : undefined
-                            }
-                            value={this.state.joinRule}
-                            onChange={this.onJoinRuleChange}
-                        />
+                        {!this.isGOVSpace() && (
+                            <JoinRuleDropdown
+                                label={_t("create_room|room_visibility_label")}
+                                labelInvite={_t("create_room|join_rule_invite")}
+                                labelKnock={
+                                    this.askToJoinEnabled ? _t("room_settings|security|join_rule_knock") : undefined
+                                }
+                                labelPublic={_t("common|public_room")}
+                                labelRestricted={
+                                    this.supportsRestricted ? _t("create_room|join_rule_restricted") : undefined
+                                }
+                                value={this.state.joinRule}
+                                onChange={this.onJoinRuleChange}
+                            />
+                        )}
 
                         {publicPrivateLabel}
                         {visibilitySection}

@@ -536,7 +536,7 @@
             "one": "%(count)s room",
             "other": "%(count)s rooms"
         },
-        "name": "Issue",
+        "name": "Name",
         "no_results": "No results",
         "no_results_found": "No results found",
         "not_trusted": "Not trusted",
