@@ -274,6 +274,10 @@ export default class CreateRoomDialog extends React.Component<IProps, IState> {
         return this.props.parentSpace?.name === "DCA";
     }
 
+    private isGOVSpace(): boolean {
+        return this.props.parentSpace?.name === "GOV";
+    }
+
     public render(): React.ReactNode {
         const isVideoRoom = this.props.type === RoomType.ElementVideo || this.props.type === RoomType.UnstableCall;
 
@@ -397,6 +401,8 @@ export default class CreateRoomDialog extends React.Component<IProps, IState> {
             title = _t("create_room|title_video_room");
         } else if (this.isDCASpace()) {
             title = "Create a DCA room (Designated Contribution Activities)";
+        } else if (this.isGOVSpace()) {
+            title = "Create Proposal";
         } else if (this.props.parentSpace || this.state.joinRule === JoinRule.Knock) {
             title = _t("action|create_a_room");
         } else {
@@ -408,7 +414,7 @@ export default class CreateRoomDialog extends React.Component<IProps, IState> {
 
         return (
             <BaseDialog
-                className="mx_CreateRoomDialog"
+                className={`mx_CreateRoomDialog ${this.isGOVSpace() ? "mx_CreateRoomDialog_GOV" : ""}`}
                 onFinished={this.props.onFinished}
                 title={title}
                 screenName="CreateRoom"
@@ -417,17 +423,19 @@ export default class CreateRoomDialog extends React.Component<IProps, IState> {
                     <div className="mx_Dialog_content">
                         <Field
                             ref={this.nameField}
-                            label={this.isDCASpace() ? "Contribution Activity Name" : _t("common|name")}
+                            label={this.isDCASpace() ? "Contribution Activity Name" : this.isGOVSpace() ? "Proposal Name" : _t("common|name")}
                             onChange={this.onNameChange}
                             onValidate={this.onNameValidate}
                             value={this.state.name}
-                            className="mx_CreateRoomDialog_name"
+                            className={`mx_CreateRoomDialog_name ${this.isGOVSpace() ? "mx_CreateRoomDialog_name_GOV" : ""}`}
                         />
                         <Field
-                            label={this.isDCASpace() ? "Verification Method" : _t("create_room|topic_label")}
+                            label={this.isDCASpace() ? "Verification Method" : this.isGOVSpace() ? "Proposal Description" : _t("create_room|topic_label")}
                             onChange={this.onTopicChange}
                             value={this.state.topic}
-                            className="mx_CreateRoomDialog_topic"
+                            className={`mx_CreateRoomDialog_topic ${this.isGOVSpace() ? "mx_CreateRoomDialog_topic_GOV" : ""}`}
+                            element={this.isGOVSpace() ? "textarea" : undefined}
+                            rows={this.isGOVSpace() ? 12 : undefined}
                         />
                         {this.isDCASpace() && (
                             <Field
@@ -474,7 +482,9 @@ export default class CreateRoomDialog extends React.Component<IProps, IState> {
                 </form>
                 <DialogButtons
                     primaryButton={
-                        isVideoRoom ? _t("create_room|action_create_video_room") : _t("create_room|action_create_room")
+                        isVideoRoom ? _t("create_room|action_create_video_room") : 
+                        this.isGOVSpace() ? "Create Proposal" :
+                        _t("create_room|action_create_room")
                     }
                     onPrimaryButtonClick={this.onOk}
                     onCancel={this.onCancel}

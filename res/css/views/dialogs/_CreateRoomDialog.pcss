@@ -112,3 +112,45 @@ Please see LICENSE files in the repository root for full details.
     color: $muted-fg-color;
     margin-top: var(--cpd-space-6x);
 }
+
+/* GOV Space specific styles for larger Create Proposal dialog */
+.mx_CreateRoomDialog_GOV {
+    &.mx_Dialog_fixedWidth {
+        width: 800px !important; /* Much larger width */
+        max-width: 90vw; /* Responsive on smaller screens */
+    }
+
+    .mx_Dialog_content {
+        margin-bottom: 50px;
+        padding: 30px; /* More padding for spacious feel */
+    }
+}
+
+.mx_CreateRoomDialog_name_GOV {
+    .mx_Field_input {
+        font-size: 16px !important; /* Larger font */
+        padding: 15px !important; /* More padding */
+        min-height: 50px; /* Taller input field */
+    }
+    
+    .mx_Field_label {
+        font-size: 14px !important;
+        font-weight: 600 !important;
+    }
+}
+
+.mx_CreateRoomDialog_topic_GOV {
+    .mx_Field_input {
+        font-size: 14px !important;
+        padding: 20px !important; /* Much more padding */
+        min-height: 300px !important; /* Very tall for project descriptions */
+        line-height: 1.6 !important; /* Better line spacing */
+        resize: vertical; /* Allow vertical resizing */
+    }
+    
+    .mx_Field_label {
+        font-size: 14px !important;
+        font-weight: 600 !important;
+        margin-bottom: 10px !important;
+    }
+}
