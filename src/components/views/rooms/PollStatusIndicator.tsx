@@ -204,13 +204,9 @@ const PollStatusIndicator: React.FC<Props> = ({ room, className }) => {
         return null;
     }
 
-    const winnerText = pollStatus.winningOption?.toLowerCase() || '';
-    const isForWinning = winnerText.includes("for");
-    
     const classes = classNames("mx_PollStatusIndicator", className, {
         "mx_PollStatusIndicator_active": pollStatus.isActive,
         "mx_PollStatusIndicator_ended": !pollStatus.isActive,
-        "mx_PollStatusIndicator_for_winner": !pollStatus.isActive && isForWinning,
     });
 
     if (pollStatus.isActive) {
@@ -230,8 +226,10 @@ const PollStatusIndicator: React.FC<Props> = ({ room, className }) => {
         );
     }
 
+    const winnerText = pollStatus.winningOption?.toLowerCase() || '';
     console.log(`[PollStatusIndicator] Determining winner display for: "${pollStatus.winningOption}"`);
     
+    const isForWinning = winnerText.includes("for");
     const isAgainstWinning = winnerText.includes("against") || winnerText.includes("abstain");
     
     console.log(`[PollStatusIndicator] isForWinning: ${isForWinning}, isAgainstWinning: ${isAgainstWinning}`);

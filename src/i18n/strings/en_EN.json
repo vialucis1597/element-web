@@ -4213,12 +4213,5 @@
         "token_check_error": "Failed to verify token balance",
         "checking_tokens_title": "Checking Brotherhood Balance",
         "checking_tokens_message": "Checking your Brotherhood balance..."
-    },
-    "voting": {
-        "power_dialog_title": "Voting Power",
-        "power_dialog_message": "Your voting power is %(votingPower)s. Would you like to vote?",
-        "vote_button": "Vote",
-        "no_voting_power_title": "No Voting Power",
-        "no_voting_power_description": "You do not have any voting power for this proposal."
     }
 }

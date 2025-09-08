@@ -34,7 +34,6 @@ import PollCreateDialog from "../elements/PollCreateDialog";
 import { MatrixClientPeg } from "../../../MatrixClientPeg";
 import Spinner from "../elements/Spinner";
 import { PollOption } from "../polls/PollOption";
-import VotingPowerDialog from "../dialogs/VotingPowerDialog";
 import { loadVotingPowerSnapshot, getVotingPowerFromSnapshot } from "../../../utils/votingPowerSnapshot";
 import { DAOMnemonicWallet } from "../../../utils/DAOMnemonicWallet";
 import SpaceStore from "../../../stores/spaces/SpaceStore";
@@ -45,7 +44,6 @@ interface IState {
     pollInitialised: boolean;
     selected?: string | null | undefined; // Which option was clicked by the local user
     voteRelations?: Relations; // Voting (response) events
-    hasVoted: boolean; // Track if user has already voted
 }
 
 export function createVoteRelations(getRelationsForEvent: GetRelationsForEvent, eventId: string): RelatedRelations {
@@ -153,7 +151,6 @@ export default class MPollBody extends React.Component<IBodyProps, IState> {
         this.state = {
             selected: null,
             pollInitialised: false,
-            hasVoted: false,
         };
     }
 
@@ -215,13 +212,6 @@ export default class MPollBody extends React.Component<IBodyProps, IState> {
         if (this.state.poll?.isEnded) {
             return;
         }
-        
-        // Check if user has already voted
-        if (this.state.hasVoted) {
-            console.log("User has already voted, preventing additional votes");
-            return;
-        }
-        
         const userVotes = this.collectUserVotes();
         const userId = this.context.getSafeUserId();
         const myVote = userVotes.get(userId)?.answers[0];
@@ -229,57 +219,7 @@ export default class MPollBody extends React.Component<IBodyProps, IState> {
             return;
         }
 
-        // Check if this is a GOV proposal room and show voting power dialog
-        const room = this.context.getRoom(this.props.mxEvent.getRoomId()!);
-        if (room && this.isGOVProposalRoom(room)) {
-            try {
-                console.log("GOV proposal room detected, checking voting power...");
-                
-                // Load voting power snapshot
-                const snapshot = await loadVotingPowerSnapshot(this.context, room.roomId);
-                if (snapshot) {
-                    // Get user's wallet address
-                    const daoWallet = DAOMnemonicWallet.getInstance();
-                    const daoWallets = daoWallet.getAllDAOWallets();
-                    if (daoWallets.length > 0) {
-                        const userWalletAddress = daoWallets[0].address;
-                        const votingPower = getVotingPowerFromSnapshot(snapshot, userWalletAddress);
-                        
-                        console.log(`User voting power: ${votingPower} for wallet ${userWalletAddress}`);
-                        
-                        if (votingPower > 0) {
-                            // Show voting power dialog
-                            console.log("Creating VotingPowerDialog...");
-                            const [shouldVote] = await Modal.createDialog(VotingPowerDialog, {
-                                votingPower,
-                                onFinished: (shouldVote: boolean) => {
-                                    console.log("VotingPowerDialog onFinished called with:", shouldVote);
-                                },
-                            }).finished;
-                            
-                            console.log("VotingPowerDialog finished with result:", shouldVote);
-                            
-                            if (!shouldVote) {
-                                console.log("User cancelled voting");
-                                return; // User cancelled
-                            }
-                            
-                            console.log("User confirmed voting, proceeding with vote submission");
-                        } else {
-                            // No voting power
-                            Modal.createDialog(ErrorDialog, {
-                                title: _t("voting|no_voting_power_title"),
-                                description: _t("voting|no_voting_power_description"),
-                            });
-                            return;
-                        }
-                    }
-                }
-            } catch (error) {
-                console.error("Failed to check voting power:", error);
-                // Continue with normal voting if check fails
-            }
-        }
+        // No voting power dialog - voting power will be displayed in room header
 
         const response = PollResponseEvent.from([answerId], this.props.mxEvent.getId()!).serialize();
 
@@ -313,11 +253,6 @@ export default class MPollBody extends React.Component<IBodyProps, IState> {
                 response.type as keyof TimelineEvents,
                 response.content as TimelineEvents[keyof TimelineEvents],
             )
-            .then(() => {
-                console.log("Vote submitted successfully");
-                // Mark as voted and update selection
-                this.setState({ selected: answerId, hasVoted: true });
-            })
             .catch((e: any) => {
                 console.error("Failed to submit poll response event:", e);
 
@@ -326,6 +261,8 @@ export default class MPollBody extends React.Component<IBodyProps, IState> {
                     description: _t("poll|error_voting_description"),
                 });
             });
+
+        this.setState({ selected: answerId });
     }
 
     /**
@@ -356,10 +293,7 @@ export default class MPollBody extends React.Component<IBodyProps, IState> {
         if (newEvents.length > 0) {
             for (const mxEvent of newEvents) {
                 if (mxEvent.getSender() === this.context.getUserId()) {
-                    // If user has already voted, don't change selection
-                    if (!this.state.hasVoted) {
-                        newSelected = null;
-                    }
+                    newSelected = null;
                 }
             }
         }
@@ -456,7 +390,6 @@ export default class MPollBody extends React.Component<IBodyProps, IState> {
                                 totalVoteCount={totalVotes}
                                 displayVoteCount={showResults}
                                 onOptionSelected={this.selectOption.bind(this)}
-                                disabled={this.state.hasVoted}
                             />
                         );
                     })}

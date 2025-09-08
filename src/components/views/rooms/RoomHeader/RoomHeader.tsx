@@ -54,6 +54,9 @@ import { RoomSettingsTab } from "../../dialogs/RoomSettingsDialog.tsx";
 import { useScopedRoomContext } from "../../../../contexts/ScopedRoomContext.tsx";
 import { ToggleableIcon } from "./toggle/ToggleableIcon.tsx";
 import { CurrentRightPanelPhaseContextProvider } from "../../../../contexts/CurrentRightPanelPhaseContext.tsx";
+import SpaceStore from "../../../../stores/spaces/SpaceStore.ts";
+import { loadVotingPowerSnapshot, getVotingPowerFromSnapshot } from "../../../../utils/votingPowerSnapshot.ts";
+import { DAOMnemonicWallet } from "../../../../utils/DAOMnemonicWallet.ts";
 
 function isDCARoom(room: Room): boolean {
     // Check if room topic contains DCA-specific content
@@ -67,6 +70,48 @@ function extractContributionValue(topic: string | undefined): string | null {
     if (!topic) return null;
     const match = topic.match(/Contribution Value:\s*(.+?)(?:\n|$)/);
     return match ? match[1].trim() : null;
+}
+
+function isGOVProposalRoom(room: Room): boolean {
+    // Check if this room is a child of GOV space using SpaceStore
+    const parentSpaces = SpaceStore.instance.getParents(room.roomId);
+    return parentSpaces.some((parent: any) => {
+        const parentRoom = room.client.getRoom(parent.roomId);
+        return parentRoom && parentRoom.name === "GOV";
+    });
+}
+
+function useVotingPower(room: Room): number | null {
+    const [votingPower, setVotingPower] = React.useState<number | null>(null);
+    
+    React.useEffect(() => {
+        if (!isGOVProposalRoom(room)) {
+            setVotingPower(null);
+            return;
+        }
+        
+        const loadVotingPower = async () => {
+            try {
+                const snapshot = await loadVotingPowerSnapshot(room.client, room.roomId);
+                if (snapshot) {
+                    const daoWallet = DAOMnemonicWallet.getInstance();
+                    const daoWallets = daoWallet.getAllDAOWallets();
+                    if (daoWallets.length > 0) {
+                        const userWalletAddress = daoWallets[0].address;
+                        const power = getVotingPowerFromSnapshot(snapshot, userWalletAddress);
+                        setVotingPower(power);
+                    }
+                }
+            } catch (error) {
+                console.error("Failed to load voting power:", error);
+                setVotingPower(null);
+            }
+        };
+        
+        loadVotingPower();
+    }, [room.roomId]);
+    
+    return votingPower;
 }
 
 export default function RoomHeader({
@@ -89,6 +134,9 @@ export default function RoomHeader({
     
     const isDCA = isDCARoom(room);
     const contributionValue = isDCA ? extractContributionValue(roomTopic) : null;
+    
+    const isGOVProposal = isGOVProposalRoom(room);
+    const votingPower = useVotingPower(room);
 
     const members = useRoomMembers(room, 2500);
     const memberCount = useRoomMemberCount(room, { throttleWait: 2500 });
@@ -345,6 +393,17 @@ export default function RoomHeader({
                                     style={{ color: "var(--cpd-color-text-secondary)", marginTop: "2px" }}
                                 >
                                     Contribution Value: {contributionValue}B
+                                </BodyText>
+                            )}
+
+                            {isGOVProposal && votingPower !== null && (
+                                <BodyText
+                                    as="div"
+                                    size="sm"
+                                    className="mx_RoomHeader_votingPower"
+                                    style={{ color: "var(--cpd-color-text-secondary)", marginTop: "2px" }}
+                                >
+                                    My Voting Power: {votingPower}
                                 </BodyText>
                             )}
                         </Box>

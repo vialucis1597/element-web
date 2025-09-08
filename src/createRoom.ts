@@ -460,16 +460,6 @@ export default async function createRoom(client: MatrixClient, opts: IOpts): Pro
                                                     const pollEventId = pollEventResult.event_id;
                                                     logger.info(`Successfully sent poll for GOV ${govAgenda.type} with ${durationText} duration`);
                                                     
-                                                    // Pin the poll event automatically
-                                                    try {
-                                                        await client.setRoomStateEvent(roomId, "m.room.pinned_events", "", {
-                                                            pinned: [pollEventId]
-                                                        });
-                                                        logger.info(`Successfully pinned poll event ${pollEventId} for GOV ${govAgenda.type}`);
-                                                    } catch (pinError) {
-                                                        logger.error(`Failed to pin poll event for GOV ${govAgenda.type}:`, pinError);
-                                                    }
-                                                    
                                                     // Set up automatic poll closure
                                                     const timeUntilEnd = endTime - Date.now();
                                                     logger.info(`Setting up poll auto-end: timeUntilEnd=${timeUntilEnd}ms, endTime=${new Date(endTime)}, pollEventId=${pollEventId}`);

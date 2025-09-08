@@ -76,42 +76,10 @@ Please see LICENSE files in the repository root for full details.
     }
 }
 
-/* Special styling for "For" option when it wins */
-.mx_PollOption_checked.mx_PollOption_for_winner {
-    border-color: #22c55e; /* Green border */
-    background-color: #dcfce7; /* Light green background */
-
-    .mx_PollOption_popularityBackground {
-        .mx_PollOption_popularityAmount {
-            background-color: #22c55e; /* Green progress bar */
-        }
-    }
-
-    /* Green checkmark for "For" winner */
-    .mx_StyledRadioButton_checked {
-        input[type="radio"]:checked + div {
-            border-width: 2px;
-            border-color: #22c55e; /* Green border */
-            background-color: #22c55e; /* Green background */
-            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='white' viewBox='0 0 24 24'%3E%3Cpath d='M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z'/%3E%3C/svg%3E"); /* White checkmark */
-            background-size: 16px;
-            background-repeat: no-repeat;
-            background-position: center;
-
-            div {
-                visibility: hidden;
-            }
-        }
-    }
-}
-
 /* options not actionable in these states */
 .mx_PollOption_checked,
-.mx_PollOption_ended,
-.mx_PollOption_disabled {
+.mx_PollOption_ended {
     pointer-events: none;
-    opacity: 0.6;
-    cursor: not-allowed;
 }
 
 .mx_PollOption_popularityBackground {
