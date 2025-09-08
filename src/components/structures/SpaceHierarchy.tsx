@@ -110,14 +110,19 @@ const Tile: React.FC<ITileProps> = ({
     });
     const joinedRoomName = useTypedEventEmitterState(joinedRoom, RoomEvent.Name, (room) => room?.name);
     
-    const name =
+    // Custom display name for DCA space
+    const isDCASpace = joinedRoom && joinedRoom.name === "DCA";
+    const name = isDCASpace ? "DCA" : (
         joinedRoomName ||
         room.name ||
         room.canonical_alias ||
         room.aliases?.[0] ||
-        (room.room_type === RoomType.Space ? _t("common|unnamed_space") : _t("common|unnamed_room"));
+        (room.room_type === RoomType.Space ? _t("common|unnamed_space") : _t("common|unnamed_room"))
+    );
 
-    const [showChildren, toggleShowChildren] = useStateToggle(true);
+    // GOV space should start collapsed, others start expanded
+    const isGOVSpace = joinedRoom && joinedRoom.name === "GOV";
+    const [showChildren, toggleShowChildren] = useStateToggle(!isGOVSpace);
     const [onFocus, isActive, ref, nodeRef] = useRovingTabIndex();
     const [busy, setBusy] = useState(false);
     const checkboxLabelId = useId();

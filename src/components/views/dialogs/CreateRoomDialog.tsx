@@ -163,6 +163,9 @@ export default class CreateRoomDialog extends React.Component<IProps, IState> {
                 // Discussion type - no numbering
                 createOpts.name = `Discussion: ${this.state.name}`;
             }
+        } else if (this.isDCASpace()) {
+            // Add DCA prefix for DCA space
+            createOpts.name = `DCA: ${this.state.name}`;
         } else {
             createOpts.name = this.state.name;
         }
