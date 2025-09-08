@@ -793,7 +793,6 @@ export default class CreateRoomDialog extends React.Component<IProps, IState> {
                                                 className="mx_CreateRoomDialog_votingSystem_duration_dropdown"
                                                 label="Voting Duration"
                                             >
-                                                <option value={0}>10 seconds</option>
                                                 {Array.from({length: 12}, (_, i) => i + 3).map(days => (
                                                     <option key={days} value={days}>
                                                         {days} day{days !== 1 ? 's' : ''}
@@ -826,7 +825,7 @@ export default class CreateRoomDialog extends React.Component<IProps, IState> {
                                     </div>
                                     <div className="mx_CreateRoomDialog_votingSystem_info">
                                         <span className="mx_CreateRoomDialog_help_icon">ℹ️</span>
-                                        {`Basic voting with For and Against or Abstain options. Voting will be open for ${this.state.votingSystem.duration === 0 ? '10 seconds' : `${this.state.votingSystem.duration} day${this.state.votingSystem.duration !== 1 ? 's' : ''}`}.`}
+                                        {`Basic voting with For and Against or Abstain options. Voting will be open for ${this.state.votingSystem.duration} day${this.state.votingSystem.duration !== 1 ? 's' : ''}.`}
                                     </div>
                                 </div>
                             </div>

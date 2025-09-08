@@ -431,19 +431,13 @@ export default async function createRoom(client: MatrixClient, opts: IOpts): Pro
                                         let endTime: number;
                                         let durationText: string;
                                         
-                                        if (duration === 0) {
-                                            // 10 seconds option
-                                            endTime = Date.now() + (10 * 1000);
-                                            durationText = "10 seconds";
-                                        } else {
-                                            // Days option
-                                            endTime = Date.now() + (duration * 24 * 60 * 60 * 1000);
-                                            durationText = `${duration} day${duration !== 1 ? 's' : ''}`;
-                                        }
+                                        // Days option only (10 seconds option removed)
+                                        endTime = Date.now() + (duration * 24 * 60 * 60 * 1000);
+                                        durationText = `${duration} day${duration !== 1 ? 's' : ''}`;
                                         
-                                        // Create poll question with only voting period info (remove "Vote on:" prefix)
+                                        // Create poll question with only end time info
                                         const endDate = new Date(endTime);
-                                        const pollQuestionWithCountdown = `Voting Period: ${durationText}\nEnds: ${endDate.toLocaleDateString()} at ${endDate.toLocaleTimeString()}`;
+                                        const pollQuestionWithCountdown = `Ends: ${endDate.toLocaleDateString()} at ${endDate.toLocaleTimeString()}`;
                                         
                                         // Create poll event with end time (always use undisclosed for basic voting)
                                         const pollEvent = PollStartEvent.from(
