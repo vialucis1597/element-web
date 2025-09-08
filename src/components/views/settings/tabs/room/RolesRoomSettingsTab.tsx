@@ -183,9 +183,16 @@ export default class RolesRoomSettingsTab extends React.Component<IProps, RolesR
         stateLevel: number,
         eventsLevel: number,
     ): void {
+        const isGOVSpace = this.props.room.name === "GOV";
+        
         for (const desiredEvent of Object.keys(plEventsToShow)) {
             if (!(desiredEvent in eventsSection)) {
-                eventsSection[desiredEvent] = plEventsToShow[desiredEvent].isState ? stateLevel : eventsLevel;
+                // For GOV space, set SpaceChild (Manage rooms in this space) to 25 instead of stateLevel
+                if (isGOVSpace && desiredEvent === EventType.SpaceChild) {
+                    eventsSection[desiredEvent] = 25;
+                } else {
+                    eventsSection[desiredEvent] = plEventsToShow[desiredEvent].isState ? stateLevel : eventsLevel;
+                }
             }
         }
     }
