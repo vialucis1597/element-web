@@ -1,0 +1,31 @@
+/*
+Copyright 2024 New Vector Ltd.
+
+SPDX-License-Identifier: AGPL-3.0-only OR GPL-3.0-only OR LicenseRef-Element-Commercial
+Please see LICENSE files in the repository root for full details.
+*/
+
+.mx_SpaceSettingsGOVTab {
+    .mx_SpaceSettingsGOVTab_message {
+        margin-top: 12px;
+        padding: 8px 12px;
+        border-radius: 4px;
+        font-size: 14px;
+        
+        &.error {
+            background-color: var(--warning-color);
+            color: var(--warning-color-foreground);
+        }
+        
+        &.success {
+            background-color: var(--success-color);
+            color: var(--success-color-foreground);
+        }
+    }
+    
+    .mx_SpaceSettingsGOVTab_actions {
+        margin-top: 16px;
+        display: flex;
+        justify-content: flex-end;
+    }
+}

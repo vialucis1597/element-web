@@ -28,6 +28,10 @@ import { KeyBindingAction } from "../../../accessibility/KeyboardShortcuts";
 import { privateShouldBeEncrypted } from "../../../utils/rooms";
 import SettingsStore from "../../../settings/SettingsStore";
 import LabelledCheckbox from "../elements/LabelledCheckbox";
+import { canCreateAgenda } from "../../../utils/govTokenUtils";
+import Modal from "../../../Modal";
+import ErrorDialog from "../dialogs/ErrorDialog";
+import TokenCheckDialog from "./TokenCheckDialog";
 
 interface IProps {
     type?: RoomType;
@@ -150,6 +154,14 @@ export default class CreateRoomDialog extends React.Component<IProps, IState> {
     }
 
     private roomCreateOptions(): IOpts {
+        console.log("Creating room options for GOV space:", this.isGOVSpace());
+        console.log("Current state:", {
+            name: this.state.name,
+            topic: this.state.topic,
+            agendaType: this.state.agendaType,
+            parentSpace: this.props.parentSpace?.name
+        });
+        
         const opts: IOpts = {};
         const createOpts: IOpts["createOpts"] = (opts.createOpts = {});
         opts.roomType = this.props.type;
@@ -261,17 +273,50 @@ export default class CreateRoomDialog extends React.Component<IProps, IState> {
         if (this.aliasField.current) {
             await this.aliasField.current.validate({ allowEmpty: false });
         }
+        
+        // B token check is now handled in showCreateNewRoom before opening this dialog
+        
+        // After B token check (if applicable), proceed with normal validation
+        // Re-validate name field after B token check
+        if (this.nameField.current) {
+            await this.nameField.current.validate({ allowEmpty: false });
+        }
+        if (this.aliasField.current) {
+            await this.aliasField.current.validate({ allowEmpty: false });
+        }
+        
         // Validation and state updates are async, so we need to wait for them to complete
         // first. Queue a `setState` callback and wait for it to resolve.
         await new Promise<void>((resolve) => this.setState({}, resolve));
+        
+        console.log("Final validation state:", {
+            nameIsValid: this.state.nameIsValid,
+            aliasValid: this.aliasField.current ? this.aliasField.current.isValid : true,
+            name: this.state.name,
+            topic: this.state.topic,
+            agendaType: this.state.agendaType
+        });
+        
         if (this.state.nameIsValid && (!this.aliasField.current || this.aliasField.current.isValid)) {
-            this.props.onFinished(true, this.roomCreateOptions());
+            console.log("All validations passed, creating room");
+            console.log("Room create options:", this.roomCreateOptions());
+            try {
+                this.props.onFinished(true, this.roomCreateOptions());
+                console.log("onFinished called successfully");
+            } catch (error) {
+                console.error("Error calling onFinished:", error);
+            }
         } else {
+            console.log("Validation failed, showing field errors");
+            console.log("Name field validation:", this.nameField.current?.isValid);
+            console.log("Alias field validation:", this.aliasField.current?.isValid);
             let field: RoomAliasField | Field | null = null;
             if (!this.state.nameIsValid) {
                 field = this.nameField.current;
+                console.log("Name field is invalid, focusing on it");
             } else if (this.aliasField.current && !this.aliasField.current.isValid) {
                 field = this.aliasField.current;
+                console.log("Alias field is invalid, focusing on it");
             }
             if (field) {
                 field.focus();

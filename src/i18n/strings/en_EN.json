@@ -4197,5 +4197,21 @@
             "userInputs": "There should not be any personal or page related data.",
             "wordByItself": "A word by itself is easy to guess"
         }
+    },
+    "gov_settings": {
+        "title": "GOV Settings",
+        "b_token_condition_title": "Holding B Condition for Agenda Generation",
+        "b_token_condition_description": "Set the minimum B token balance required to create new agendas in this space.",
+        "b_token_required_label": "Required B Token Amount",
+        "b_token_required_description": "Enter the minimum number of B tokens a user must hold to create agendas.",
+        "save_settings": "Save Settings",
+        "settings_saved": "Settings saved successfully",
+        "save_error": "Failed to save settings",
+        "invalid_b_token_amount": "Please enter a valid B token amount",
+        "insufficient_tokens_title": "Insufficient B Tokens",
+        "insufficient_tokens_description": "You do not have enough B tokens to create an agenda",
+        "token_check_error": "Failed to verify token balance",
+        "checking_tokens_title": "Checking Brotherhood Balance",
+        "checking_tokens_message": "Checking your Brotherhood balance..."
     }
 }

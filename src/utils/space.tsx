@@ -32,6 +32,9 @@ import {
 import { type OpenSpaceSettingsPayload } from "../dispatcher/payloads/OpenSpaceSettingsPayload";
 import { type OpenAddExistingToSpaceDialogPayload } from "../dispatcher/payloads/OpenAddExistingToSpaceDialogPayload";
 import { SdkContextClass } from "../contexts/SDKContext";
+import { canCreateAgenda } from "./govTokenUtils";
+import TokenCheckDialog from "../components/views/dialogs/TokenCheckDialog";
+import ErrorDialog from "../components/views/dialogs/ErrorDialog";
 
 export const shouldShowSpaceSettings = (space: Room): boolean => {
     const userId = space.client.getUserId()!;
@@ -68,6 +71,47 @@ export const showAddExistingRooms = (space: Room): void => {
 };
 
 export const showCreateNewRoom = async (space: Room, type?: RoomType): Promise<boolean> => {
+    // Check B token requirement for GOV space agenda creation
+    if (space.name === "GOV") {
+        const cli = space.client;
+        const userId = cli.getSafeUserId();
+        const spaceId = space.roomId;
+        
+        // Show loading dialog while checking tokens
+        const loadingDialog = Modal.createDialog(TokenCheckDialog, {
+            onFinished: () => {}, // Don't close on finished, we'll close it manually
+        });
+        
+        try {
+            console.log("Starting B token check for GOV space agenda creation (before opening dialog)");
+            const permissionCheck = await canCreateAgenda(cli, spaceId, userId);
+            
+            // Close loading dialog
+            loadingDialog.close();
+            
+            if (!permissionCheck.canCreate) {
+                console.log("B token check failed:", permissionCheck);
+                Modal.createDialog(ErrorDialog, {
+                    title: _t("gov_settings|insufficient_tokens_title"),
+                    description: permissionCheck.message || _t("gov_settings|insufficient_tokens_description"),
+                });
+                return false;
+            }
+            
+            console.log("B token check passed, opening agenda creation dialog");
+        } catch (error) {
+            console.error("Failed to check B token requirement:", error);
+            // Close loading dialog
+            loadingDialog.close();
+            
+            Modal.createDialog(ErrorDialog, {
+                title: _t("common|error"),
+                description: _t("gov_settings|token_check_error"),
+            });
+            return false;
+        }
+    }
+    
     const modal = Modal.createDialog(CreateRoomDialog, {
         type,
         defaultPublic: space.getJoinRule() === JoinRule.Public,

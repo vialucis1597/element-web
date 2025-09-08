@@ -16,6 +16,7 @@ import { useDispatcher } from "../../../hooks/useDispatcher";
 import TabbedView, { Tab } from "../../structures/TabbedView";
 import SpaceSettingsGeneralTab from "../spaces/SpaceSettingsGeneralTab";
 import SpaceSettingsVisibilityTab from "../spaces/SpaceSettingsVisibilityTab";
+import SpaceSettingsGOVTab from "../spaces/SpaceSettingsGOVTab";
 import SettingsStore from "../../../settings/SettingsStore";
 import { UIFeature } from "../../../settings/UIFeature";
 import AdvancedRoomSettingsTab from "../settings/tabs/room/AdvancedRoomSettingsTab";
@@ -27,6 +28,7 @@ export enum SpaceSettingsTab {
     General = "SPACE_GENERAL_TAB",
     Visibility = "SPACE_VISIBILITY_TAB",
     Roles = "SPACE_ROLES_TAB",
+    GOV = "SPACE_GOV_TAB",
     Advanced = "SPACE_ADVANCED_TAB",
 }
 
@@ -44,6 +46,8 @@ const SpaceSettingsDialog: React.FC<IProps> = ({ matrixClient: cli, space, onFin
     });
 
     const tabs = useMemo(() => {
+        const isGOVSpace = space.name === "GOV";
+        
         return [
             new Tab(
                 SpaceSettingsTab.General,
@@ -63,6 +67,14 @@ const SpaceSettingsDialog: React.FC<IProps> = ({ matrixClient: cli, space, onFin
                 "mx_RoomSettingsDialog_rolesIcon",
                 <RolesRoomSettingsTab room={space} />,
             ),
+            isGOVSpace
+                ? new Tab(
+                      SpaceSettingsTab.GOV,
+                      _td("gov_settings|title"),
+                      "mx_SpaceSettingsDialog_govIcon",
+                      <SpaceSettingsGOVTab matrixClient={cli} space={space} />,
+                  )
+                : null,
             SettingsStore.getValue(UIFeature.AdvancedSettings)
                 ? new Tab(
                       SpaceSettingsTab.Advanced,
