@@ -71,6 +71,7 @@ import { getTopic } from "../../hooks/room/useTopic";
 import { SdkContextClass } from "../../contexts/SDKContext";
 import { getDisplayAliasForAliasSet } from "../../Rooms";
 import SettingsStore from "../../settings/SettingsStore";
+import PollStatusIndicator from "../views/rooms/PollStatusIndicator";
 
 interface IProps {
     space: Room;
@@ -108,6 +109,7 @@ const Tile: React.FC<ITileProps> = ({
         return cliRoom?.getMyMembership() === KnownMembership.Join ? cliRoom : undefined;
     });
     const joinedRoomName = useTypedEventEmitterState(joinedRoom, RoomEvent.Name, (room) => room?.name);
+    
     const name =
         joinedRoomName ||
         room.name ||
@@ -258,6 +260,12 @@ const Tile: React.FC<ITileProps> = ({
         suggestedSection = <InfoTooltip tooltip={_t("space|suggested_tooltip")}>{_t("space|suggested")}</InfoTooltip>;
     }
 
+    // Add voting status indicator for GOV proposal rooms
+    let votingStatusSection: ReactElement | undefined;
+    if (joinedRoom && joinedRoom.name?.includes('Proposal #')) {
+        votingStatusSection = <PollStatusIndicator room={joinedRoom} className="mx_SpaceHierarchy_pollStatus" />;
+    }
+
     const content = (
         <React.Fragment>
             <div className="mx_SpaceHierarchy_roomTile_item">
@@ -273,6 +281,7 @@ const Tile: React.FC<ITileProps> = ({
                 </div>
             </div>
             <div className="mx_SpaceHierarchy_actions">
+                {votingStatusSection}
                 {button}
                 {checkbox}
             </div>

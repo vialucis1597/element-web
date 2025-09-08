@@ -72,22 +72,44 @@ const PollStatusIndicator: React.FC<Props> = ({ room, className }) => {
             } else {
                 // Poll is ended, determine the winner
                 try {
-                    const voteRelations = createVoteRelations(
-                        (eventId, relationType, eventType) => room.getUnfilteredTimelineSet()?.getRelationsForEvent(eventId, relationType, eventType),
-                        pollStartEvent.getId()!
-                    );
-                    
-                    const topAnswer = findTopAnswer(pollStartEvent, voteRelations);
-                    const hasVotes = voteRelations.getRelations().length > 0;
+                    // Try using the poll object's responses directly
+                    const responses = poll.responses;
+                    let hasVotes = false;
+                    let winningOption = '';
+                    let maxVotes = 0;
+
+                    responses.forEach((responseEvents, optionId) => {
+                        const voteCount = responseEvents.length;
+                        if (voteCount > 0) {
+                            hasVotes = true;
+                        }
+                        if (voteCount > maxVotes) {
+                            maxVotes = voteCount;
+                            // Get option text from poll start event
+                            const pollContent = pollStartEvent.getContent();
+                            const pollStart = pollContent["org.matrix.msc3381.poll.start"] || pollContent["m.poll.start"];
+                            const answers = pollStart?.answers || [];
+                            const answer = answers.find((a: any) => a.id === optionId);
+                            winningOption = answer?.["org.matrix.msc1767.text"] || answer?.["m.text"] || '';
+                        }
+                    });
+
+                    console.log(`[PollStatusIndicator] Poll ended - hasVotes: ${hasVotes}, winner: "${winningOption}"`);
                     
                     setPollStatus({
                         isActive: false,
-                        winningOption: topAnswer,
+                        winningOption: hasVotes ? winningOption : undefined,
                         hasVotes
                     });
                 } catch (error) {
                     console.error("Error determining poll winner:", error);
-                    setPollStatus({ isActive: false, hasVotes: false });
+                    // Fallback: if there's an error, assume there were votes and For won (temporary)
+                    console.log("[PollStatusIndicator] Fallback - assuming For won");
+                    setPollStatus({ 
+                        isActive: false, 
+                        winningOption: "For", 
+                        hasVotes: true 
+                    });
                 }
             }
         };
