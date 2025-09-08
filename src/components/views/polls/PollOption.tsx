@@ -89,13 +89,17 @@ export const PollOption: React.FC<PollOptionProps> = ({
     onOptionSelected,
     disabled,
 }) => {
+    const isWinner = isEnded && isChecked;
+    const isForWinner = isWinner && answer.text.toLowerCase().includes('for');
+    
     const cls = classNames({
         mx_PollOption: true,
         mx_PollOption_checked: isChecked,
         mx_PollOption_ended: isEnded,
         mx_PollOption_disabled: disabled,
+        mx_PollOption_for_winner: isForWinner,
     });
-    const isWinner = isEnded && isChecked;
+    
     const answerPercent = totalVoteCount === 0 ? 0 : Math.round((100.0 * voteCount) / totalVoteCount);
     const PollOptionWrapper = isEnded ? EndedPollOption : ActivePollOption;
     return (

@@ -32,9 +32,17 @@ Please see LICENSE files in the repository root for full details.
         color: var(--cpd-color-text-primary);
         
         .mx_PollStatusIndicator_checkIcon {
-            color: var(--cpd-color-icon-success-primary);
+            color: white;
             font-size: 14px;
             font-weight: bold;
+        }
+        
+        &.mx_PollStatusIndicator_for_winner {
+            background-color: #22c55e; /* Green background for For winner */
+            
+            .mx_PollStatusIndicator_checkIcon {
+                color: white; /* White checkmark on green background */
+            }
         }
         
         .mx_PollStatusIndicator_abstainIcon {

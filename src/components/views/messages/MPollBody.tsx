@@ -249,14 +249,22 @@ export default class MPollBody extends React.Component<IBodyProps, IState> {
                         
                         if (votingPower > 0) {
                             // Show voting power dialog
+                            console.log("Creating VotingPowerDialog...");
                             const [shouldVote] = await Modal.createDialog(VotingPowerDialog, {
                                 votingPower,
-                                onFinished: (shouldVote: boolean) => {},
+                                onFinished: (shouldVote: boolean) => {
+                                    console.log("VotingPowerDialog onFinished called with:", shouldVote);
+                                },
                             }).finished;
                             
+                            console.log("VotingPowerDialog finished with result:", shouldVote);
+                            
                             if (!shouldVote) {
+                                console.log("User cancelled voting");
                                 return; // User cancelled
                             }
+                            
+                            console.log("User confirmed voting, proceeding with vote submission");
                         } else {
                             // No voting power
                             Modal.createDialog(ErrorDialog, {

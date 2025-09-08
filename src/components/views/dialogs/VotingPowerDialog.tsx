@@ -18,10 +18,12 @@ interface IProps {
 
 const VotingPowerDialog: React.FC<IProps> = ({ votingPower, onFinished }) => {
     const handleVote = () => {
+        console.log("Vote button clicked, calling onFinished(true)");
         onFinished(true);
     };
 
     const handleCancel = () => {
+        console.log("Cancel button clicked, calling onFinished(false)");
         onFinished(false);
     };
 
@@ -29,7 +31,10 @@ const VotingPowerDialog: React.FC<IProps> = ({ votingPower, onFinished }) => {
         <BaseDialog
             title={_t("voting|power_dialog_title")}
             className="mx_VotingPowerDialog"
-            onFinished={() => onFinished(false)}
+            onFinished={() => {
+                console.log("BaseDialog onFinished called, calling onFinished(false)");
+                onFinished(false);
+            }}
             hasCancel={true}
         >
             <div className="mx_VotingPowerDialog_content">
