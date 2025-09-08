@@ -23,6 +23,7 @@ import {
     useRoomListHeaderViewModel,
 } from "../../../viewmodels/roomlist/RoomListHeaderViewModel";
 import { RoomListOptionsMenu } from "./RoomListOptionsMenu";
+import SpaceStore from "../../../../stores/spaces/SpaceStore";
 
 /**
  * The header view for the room list
@@ -129,6 +130,10 @@ interface ComposeMenuProps {
  */
 function ComposeMenu({ vm }: ComposeMenuProps): JSX.Element {
     const [open, setOpen] = useState(false);
+    
+    // Check if this is a DCA space (for menu text customization)
+    const activeSpace = SpaceStore.instance.activeSpaceRoom;
+    const isDCASpace = activeSpace?.name === "DCA" || activeSpace?.getCanonicalAlias()?.includes("dca") || activeSpace?.roomId.includes("dca");
 
     return (
         <Menu
@@ -146,7 +151,7 @@ function ComposeMenu({ vm }: ComposeMenuProps): JSX.Element {
         >
             <MenuItem Icon={ChatIcon} label={_t("action|start_chat")} onSelect={vm.createChatRoom} hideChevron={true} />
             {vm.canCreateRoom && (
-                <MenuItem Icon={RoomIcon} label={_t("action|new_room")} onSelect={vm.createRoom} hideChevron={true} />
+                <MenuItem Icon={RoomIcon} label={isDCASpace ? "New DCA" : _t("action|new_room")} onSelect={vm.createRoom} hideChevron={true} />
             )}
             {vm.canCreateVideoRoom && (
                 <MenuItem

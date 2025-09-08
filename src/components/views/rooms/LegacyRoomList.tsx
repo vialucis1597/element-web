@@ -221,6 +221,9 @@ const UntaggedAuxButton: React.FC<IAuxButtonProps> = ({ tabIndex }) => {
 
     // Check if this is a GOV space (for menu text customization)
     const isGOVSpace = activeSpace?.name === "GOV" || activeSpace?.getCanonicalAlias()?.includes("gov") || activeSpace?.roomId.includes("gov");
+    
+    // Check if this is a DCA space (for menu text customization)
+    const isDCASpace = activeSpace?.name === "DCA" || activeSpace?.getCanonicalAlias()?.includes("dca") || activeSpace?.roomId.includes("dca");
 
     let contextMenuContent: JSX.Element | undefined;
     if (menuDisplayed && activeSpace) {
@@ -249,7 +252,7 @@ const UntaggedAuxButton: React.FC<IAuxButtonProps> = ({ tabIndex }) => {
                 {showCreateRoom ? (
                     <>
                         <IconizedContextMenuOption
-                            label={isGOVSpace ? "New agenda" : _t("action|new_room")}
+                            label={isGOVSpace ? "New agenda" : isDCASpace ? "New DCA" : _t("action|new_room")}
                             iconClassName="mx_LegacyRoomList_iconNewRoom"
                             onClick={(e) => {
                                 e.preventDefault();
@@ -682,6 +685,7 @@ export default class LegacyRoomList extends React.PureComponent<IProps, IState> 
         // Check if we're in a GOV space to customize the rendering
         const activeSpaceRoom = SpaceStore.instance.activeSpaceRoom;
         const isGOVSpace = activeSpaceRoom?.name === "GOV";
+        const isDCASpace = activeSpaceRoom?.name === "DCA";
 
         // Special handling for GOV space - split Untagged rooms into Proposals and Discussions
         if (isGOVSpace) {
@@ -717,6 +721,15 @@ export default class LegacyRoomList extends React.PureComponent<IProps, IState> 
             ) {
                 forceExpanded = true;
             }
+            // Customize label for DCA space
+            let label = aesthetics.sectionLabelRaw ? 
+                aesthetics.sectionLabelRaw : 
+                _t(aesthetics.sectionLabel);
+            
+            if (isDCASpace && orderedTagId === DefaultTagID.Untagged) {
+                label = "DCA";
+            }
+
             // The cost of mounting/unmounting this component offsets the cost
             // of keeping it in the DOM and hiding it when it is not required
             return (
@@ -725,11 +738,7 @@ export default class LegacyRoomList extends React.PureComponent<IProps, IState> 
                     tagId={orderedTagId}
                     forRooms={true}
                     startAsHidden={aesthetics.defaultHidden}
-                    label={
-                        aesthetics.sectionLabelRaw ? 
-                            aesthetics.sectionLabelRaw : 
-                            _t(aesthetics.sectionLabel)
-                    }
+                    label={label}
                     AuxButtonComponent={aesthetics.AuxButtonComponent}
                     isMinimized={this.props.isMinimized}
                     showSkeleton={showSkeleton}

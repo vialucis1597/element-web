@@ -115,7 +115,7 @@ const createSubspaces = async (client: MatrixClient, parentRoomId: string, daoNa
                     events_default: 100,
                     invite: 0,
                 },
-                topic: `Issue Hub Governance space for ${daoName} DAO`,
+                topic: `Snapshot Governance space for ${daoName} DAO`,
             },
             roomType: RoomType.Space,
             historyVisibility: HistoryVisibility.Invited,

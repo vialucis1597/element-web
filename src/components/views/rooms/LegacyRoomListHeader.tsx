@@ -152,6 +152,9 @@ const LegacyRoomListHeader: React.FC<IProps> = ({ onVisibilityChange }) => {
 
     // Check if this is a GOV space (for menu text customization)
     const isGOVSpace = activeSpace?.name === "GOV" || activeSpace?.getCanonicalAlias()?.includes("gov") || activeSpace?.roomId.includes("gov");
+    
+    // Check if this is a DCA space (for menu text customization)
+    const isDCASpace = activeSpace?.name === "DCA" || activeSpace?.getCanonicalAlias()?.includes("dca") || activeSpace?.roomId.includes("dca");
 
     // If the user can't do anything on the plus menu, don't show it. This aims to target the
     // plus menu shown on the Home tab primarily: the user has options to use the menu for
@@ -198,7 +201,7 @@ const LegacyRoomListHeader: React.FC<IProps> = ({ onVisibilityChange }) => {
                 <>
                             <IconizedContextMenuOption
                                 iconClassName="mx_LegacyRoomListHeader_iconNewRoom"
-                                label={isGOVSpace ? "New agenda" : _t("action|new_room")}
+                                label={isGOVSpace ? "New agenda" : isDCASpace ? "New DCA" : _t("action|new_room")}
                                 onClick={(e) => {
                                     e.preventDefault();
                                     e.stopPropagation();
