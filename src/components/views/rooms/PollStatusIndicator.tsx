@@ -160,7 +160,7 @@ const PollStatusIndicator: React.FC<Props> = ({ room, className }) => {
         const onPollUpdate = (event: MatrixEvent) => {
             if (event.getRoomId() === room.roomId) {
                 // Add small delay to ensure poll state is updated
-                setTimeout(checkPollStatus, 50);
+                setTimeout(checkPollStatus, 250);
             }
         };
 
@@ -185,7 +185,7 @@ const PollStatusIndicator: React.FC<Props> = ({ room, className }) => {
         // Also listen for room state changes to catch poll updates
         const onRoomStateEvent = (event: MatrixEvent) => {
             if (event.getRoomId() === room.roomId) {
-                setTimeout(checkPollStatus, 50);
+                setTimeout(checkPollStatus, 250);
             }
         };
         room.on("Room.timeline", onRoomStateEvent);
