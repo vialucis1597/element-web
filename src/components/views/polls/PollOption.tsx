@@ -40,6 +40,7 @@ interface PollOptionProps extends PollOptionContentProps {
     isChecked?: boolean;
     onOptionSelected?: (id: string) => void;
     children?: ReactNode;
+    disabled?: boolean;
 }
 
 const EndedPollOption: React.FC<Omit<PollOptionProps, "voteCount" | "totalVoteCount">> = ({
@@ -63,13 +64,15 @@ const ActivePollOption: React.FC<Omit<PollOptionProps, "voteCount" | "totalVoteC
     children,
     answer,
     onOptionSelected,
+    disabled,
 }) => (
     <StyledRadioButton
         className="mx_PollOption_live-option"
         name={`poll_answer_select-${pollId}`}
         value={answer.id}
         checked={isChecked}
-        onChange={() => onOptionSelected?.(answer.id)}
+        disabled={disabled}
+        onChange={() => !disabled && onOptionSelected?.(answer.id)}
     >
         {children}
     </StyledRadioButton>
@@ -84,22 +87,29 @@ export const PollOption: React.FC<PollOptionProps> = ({
     isEnded,
     isChecked,
     onOptionSelected,
+    disabled,
 }) => {
     const cls = classNames({
         mx_PollOption: true,
         mx_PollOption_checked: isChecked,
         mx_PollOption_ended: isEnded,
+        mx_PollOption_disabled: disabled,
     });
     const isWinner = isEnded && isChecked;
     const answerPercent = totalVoteCount === 0 ? 0 : Math.round((100.0 * voteCount) / totalVoteCount);
     const PollOptionWrapper = isEnded ? EndedPollOption : ActivePollOption;
     return (
-        <div data-testid={`pollOption-${answer.id}`} className={cls} onClick={() => onOptionSelected?.(answer.id)}>
+        <div 
+            data-testid={`pollOption-${answer.id}`} 
+            className={cls} 
+            onClick={() => !disabled && onOptionSelected?.(answer.id)}
+        >
             <PollOptionWrapper
                 pollId={pollId}
                 answer={answer}
                 isChecked={isChecked}
                 onOptionSelected={onOptionSelected}
+                disabled={disabled}
             >
                 <PollOptionContent
                     isWinner={isWinner}

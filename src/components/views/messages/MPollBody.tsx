@@ -45,6 +45,7 @@ interface IState {
     pollInitialised: boolean;
     selected?: string | null | undefined; // Which option was clicked by the local user
     voteRelations?: Relations; // Voting (response) events
+    hasVoted: boolean; // Track if user has already voted
 }
 
 export function createVoteRelations(getRelationsForEvent: GetRelationsForEvent, eventId: string): RelatedRelations {
@@ -152,6 +153,7 @@ export default class MPollBody extends React.Component<IBodyProps, IState> {
         this.state = {
             selected: null,
             pollInitialised: false,
+            hasVoted: false,
         };
     }
 
@@ -213,6 +215,13 @@ export default class MPollBody extends React.Component<IBodyProps, IState> {
         if (this.state.poll?.isEnded) {
             return;
         }
+        
+        // Check if user has already voted
+        if (this.state.hasVoted) {
+            console.log("User has already voted, preventing additional votes");
+            return;
+        }
+        
         const userVotes = this.collectUserVotes();
         const userId = this.context.getSafeUserId();
         const myVote = userVotes.get(userId)?.answers[0];
@@ -296,6 +305,11 @@ export default class MPollBody extends React.Component<IBodyProps, IState> {
                 response.type as keyof TimelineEvents,
                 response.content as TimelineEvents[keyof TimelineEvents],
             )
+            .then(() => {
+                console.log("Vote submitted successfully");
+                // Mark as voted and update selection
+                this.setState({ selected: answerId, hasVoted: true });
+            })
             .catch((e: any) => {
                 console.error("Failed to submit poll response event:", e);
 
@@ -304,8 +318,6 @@ export default class MPollBody extends React.Component<IBodyProps, IState> {
                     description: _t("poll|error_voting_description"),
                 });
             });
-
-        this.setState({ selected: answerId });
     }
 
     /**
@@ -336,7 +348,10 @@ export default class MPollBody extends React.Component<IBodyProps, IState> {
         if (newEvents.length > 0) {
             for (const mxEvent of newEvents) {
                 if (mxEvent.getSender() === this.context.getUserId()) {
-                    newSelected = null;
+                    // If user has already voted, don't change selection
+                    if (!this.state.hasVoted) {
+                        newSelected = null;
+                    }
                 }
             }
         }
@@ -433,6 +448,7 @@ export default class MPollBody extends React.Component<IBodyProps, IState> {
                                 totalVoteCount={totalVotes}
                                 displayVoteCount={showResults}
                                 onOptionSelected={this.selectOption.bind(this)}
+                                disabled={this.state.hasVoted}
                             />
                         );
                     })}
