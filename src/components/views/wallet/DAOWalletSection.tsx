@@ -268,7 +268,7 @@ const DAOWalletSection: React.FC<Props> = ({ space }) => {
         if (!walletData) return;
 
         const confirmed = confirm(
-            `정말로 마이월렛을 삭제하시겠습니까?\n\n모든 DAO의 지갑이 삭제되며, 니모닉 문구가 있어야만 복구할 수 있습니다.`
+            `Are you sure you want to delete your wallet?\n\nAll DAO wallets will be deleted and can only be recovered with your mnemonic phrase.`
         );
 
         if (confirmed) {
@@ -282,15 +282,15 @@ const DAOWalletSection: React.FC<Props> = ({ space }) => {
                 setWalletData(null);
                 
                 Modal.createDialog(InfoDialog, {
-                    title: "지갑 삭제 완료",
-                    description: "모든 DAO의 지갑이 삭제되었습니다. 니모닉 문구로 언제든지 복구할 수 있습니다.",
+                    title: "Wallet Deleted Successfully",
+                    description: "All DAO wallets have been deleted. You can recover them anytime with your mnemonic phrase.",
                     button: "확인"
                 });
             } catch (err) {
                 console.error("Failed to delete wallets:", err);
                 Modal.createDialog(InfoDialog, {
-                    title: "삭제 실패",
-                    description: "지갑 삭제 중 오류가 발생했습니다.",
+                    title: "Deletion Failed",
+                    description: "An error occurred while deleting the wallet.",
                     button: "확인"
                 });
             }

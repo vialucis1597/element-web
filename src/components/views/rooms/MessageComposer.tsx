@@ -184,6 +184,15 @@ export class MessageComposer extends React.Component<IProps, IState> {
         return roomName?.startsWith("Proposal #");
     }
 
+    private isLedgerRoom(): boolean {
+        const room = this.props.room;
+        if (!room) return false;
+        
+        const roomName = room.name;
+        // Check if this is a ledger room
+        return roomName === "ledger";
+    }
+
     private restoreWysiwygEditorState(): WysiwygComposerState | undefined {
         const json = localStorage.getItem(this.editorStateKey);
         if (json) {
@@ -571,7 +580,7 @@ export class MessageComposer extends React.Component<IProps, IState> {
         const controls: ReactNode[] = [];
         const menuPosition = this.getMenuPosition();
 
-        const canSendMessages = this.context.canSendMessages && !this.context.tombstone;
+        const canSendMessages = this.context.canSendMessages && !this.context.tombstone && !this.isLedgerRoom();
         let composer: ReactNode;
         if (canSendMessages) {
             if (this.state.isWysiwygLabEnabled && menuPosition) {
@@ -647,11 +656,19 @@ export class MessageComposer extends React.Component<IProps, IState> {
                 </div>,
             );
         } else {
-            controls.push(
-                <div key="controls_error" className="mx_MessageComposer_noperm_error">
-                    {_t("composer|no_perms_notice")}
-                </div>,
-            );
+            if (this.isLedgerRoom()) {
+                controls.push(
+                    <div key="controls_ledger" className="mx_MessageComposer_noperm_error">
+                        📚 Chat is disabled in the ledger room. Only transaction records are automatically recorded.
+                    </div>,
+                );
+            } else {
+                controls.push(
+                    <div key="controls_error" className="mx_MessageComposer_noperm_error">
+                        {_t("composer|no_perms_notice")}
+                    </div>,
+                );
+            }
         }
 
         const isTooltipOpen = Boolean(this.state.recordingTimeLeftSeconds);

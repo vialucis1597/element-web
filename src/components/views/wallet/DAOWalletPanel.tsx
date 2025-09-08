@@ -241,13 +241,13 @@ const DAOWalletPanel: React.FC<Props> = ({ onClose }) => {
                                 <AccessibleButton
                                     kind="danger"
                                     onClick={() => {
-                                        if (confirm(`정말로 ${summary.daoName} DAO 지갑을 삭제하시겠습니까?`)) {
+                                        if (confirm(`Are you sure you want to delete the ${summary.daoName} DAO wallet?`)) {
                                             wallet.deleteDAOWallet(summary.daoId);
                                         }
                                     }}
                                     className="mx_DAOWalletPanel_deleteButton"
                                 >
-                                    삭제
+                                    Delete
                                 </AccessibleButton>
                             </div>
                         </div>

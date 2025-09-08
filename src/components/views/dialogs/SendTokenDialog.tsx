@@ -230,7 +230,7 @@ export default function SendTokenDialog(props: IProps): JSX.Element {
             body: `🏦 TRANSACTION RECORD 🏦\n${JSON.stringify(transactionData, null, 2)}`,
             format: "org.matrix.custom.html",
             formatted_body: `
-                <h3>🏦 BLOCKCHAIN TRANSACTION RECORD 🏦</h3>
+                <h3>🏦 TRANSACTION RECORD 🏦</h3>
                 <table border="1" style="border-collapse: collapse; width: 100%;">
                     <tr><td><b>Type</b></td><td>${transactionData.type}</td></tr>
                     <tr><td><b>From</b></td><td>${transactionData.from}</td></tr>
