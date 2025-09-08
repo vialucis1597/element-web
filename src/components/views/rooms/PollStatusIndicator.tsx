@@ -71,45 +71,83 @@ const PollStatusIndicator: React.FC<Props> = ({ room, className }) => {
                 setPollStatus({ isActive: true, hasVotes: false });
             } else {
                 // Poll is ended, determine the winner
+                // Skip the poll.responses approach and go directly to manual counting
+                console.log("[PollStatusIndicator] Using manual vote counting method");
+                
                 try {
-                    // Try using the poll object's responses directly
-                    const responses = poll.responses;
-                    let hasVotes = false;
-                    let winningOption = '';
-                    let maxVotes = 0;
-
-                    responses.forEach((responseEvents, optionId) => {
-                        const voteCount = responseEvents.length;
-                        if (voteCount > 0) {
-                            hasVotes = true;
-                        }
-                        if (voteCount > maxVotes) {
-                            maxVotes = voteCount;
-                            // Get option text from poll start event
-                            const pollContent = pollStartEvent.getContent();
-                            const pollStart = pollContent["org.matrix.msc3381.poll.start"] || pollContent["m.poll.start"];
-                            const answers = pollStart?.answers || [];
-                            const answer = answers.find((a: any) => a.id === optionId);
-                            winningOption = answer?.["org.matrix.msc1767.text"] || answer?.["m.text"] || '';
-                        }
-                    });
-
-                    console.log(`[PollStatusIndicator] Poll ended - hasVotes: ${hasVotes}, winner: "${winningOption}"`);
+                    const timeline = room.getLiveTimeline();
+                    const events = timeline.getEvents();
+                    const pollId = pollStartEvent.getId();
                     
-                    setPollStatus({
-                        isActive: false,
-                        winningOption: hasVotes ? winningOption : undefined,
-                        hasVotes
+                    // Get poll answers first
+                    const pollContent = pollStartEvent.getContent();
+                    const pollStart = pollContent["org.matrix.msc3381.poll.start"] || pollContent["m.poll.start"];
+                    const answers = pollStart?.answers || [];
+                    
+                    console.log(`[PollStatusIndicator] Available answers:`, answers);
+                    
+                    const responseEvents = events.filter(event => {
+                        const eventType = event.getType();
+                        const isResponseEvent = eventType === "org.matrix.msc3381.poll.response" || eventType === "m.poll.response";
+                        if (!isResponseEvent) return false;
+                        
+                        const content = event.getContent();
+                        const relatesTo = content["m.relates_to"];
+                        return relatesTo && relatesTo.event_id === pollId;
                     });
+                    
+                    console.log(`[PollStatusIndicator] Found ${responseEvents.length} response events`);
+                    
+                    const voteCounts = new Map<string, number>();
+                    
+                    responseEvents.forEach(responseEvent => {
+                        const content = responseEvent.getContent();
+                        const response = content["org.matrix.msc3381.poll.response"] || content["m.poll.response"];
+                        const answerIds = response?.answers;
+                        
+                        console.log(`[PollStatusIndicator] Response event content:`, response);
+                        
+                        if (Array.isArray(answerIds) && answerIds.length > 0) {
+                            const answerId = answerIds[0];
+                            voteCounts.set(answerId, (voteCounts.get(answerId) || 0) + 1);
+                            console.log(`[PollStatusIndicator] Vote for answer ID: ${answerId}`);
+                        }
+                    });
+                    
+                    // Show vote counts for each option
+                    answers.forEach((answer: any) => {
+                        const answerText = answer?.["org.matrix.msc1767.text"] || answer?.["m.text"] || 'Unknown';
+                        const voteCount = voteCounts.get(answer.id) || 0;
+                        console.log(`[PollStatusIndicator] "${answerText}" (${answer.id}): ${voteCount} votes`);
+                    });
+                    
+                    let maxVotes = 0;
+                    let winningOptionId = '';
+                    voteCounts.forEach((count, optionId) => {
+                        if (count > maxVotes) {
+                            maxVotes = count;
+                            winningOptionId = optionId;
+                        }
+                    });
+                    
+                    if (maxVotes > 0) {
+                        const winningAnswer = answers.find((a: any) => a.id === winningOptionId);
+                        const winningText = winningAnswer?.["org.matrix.msc1767.text"] || winningAnswer?.["m.text"] || 'Unknown';
+                        
+                        console.log(`[PollStatusIndicator] Winner: "${winningText}" with ${maxVotes} votes`);
+                        
+                        setPollStatus({
+                            isActive: false,
+                            winningOption: winningText,
+                            hasVotes: true
+                        });
+                    } else {
+                        console.log(`[PollStatusIndicator] No votes found`);
+                        setPollStatus({ isActive: false, hasVotes: false });
+                    }
                 } catch (error) {
-                    console.error("Error determining poll winner:", error);
-                    // Fallback: if there's an error, assume there were votes and For won (temporary)
-                    console.log("[PollStatusIndicator] Fallback - assuming For won");
-                    setPollStatus({ 
-                        isActive: false, 
-                        winningOption: "For", 
-                        hasVotes: true 
-                    });
+                    console.error("Manual vote counting failed:", error);
+                    setPollStatus({ isActive: false, hasVotes: false });
                 }
             }
         };
@@ -188,17 +226,23 @@ const PollStatusIndicator: React.FC<Props> = ({ room, className }) => {
         );
     }
 
-    const isForWinning = pollStatus.winningOption?.toLowerCase().includes("for") || false;
-    const isAgainstWinning = pollStatus.winningOption?.toLowerCase().includes("against") || 
-                            pollStatus.winningOption?.toLowerCase().includes("abstain") || false;
+    const winnerText = pollStatus.winningOption?.toLowerCase() || '';
+    console.log(`[PollStatusIndicator] Determining winner display for: "${pollStatus.winningOption}"`);
+    
+    const isForWinning = winnerText.includes("for");
+    const isAgainstWinning = winnerText.includes("against") || winnerText.includes("abstain");
+    
+    console.log(`[PollStatusIndicator] isForWinning: ${isForWinning}, isAgainstWinning: ${isAgainstWinning}`);
 
     if (isForWinning) {
+        console.log(`[PollStatusIndicator] Showing FOR winner (✓)`);
         return (
             <div className={classes} title={`투표 완료: ${pollStatus.winningOption}`}>
                 <div className="mx_PollStatusIndicator_checkIcon">✓</div>
             </div>
         );
     } else if (isAgainstWinning) {
+        console.log(`[PollStatusIndicator] Showing AGAINST/ABSTAIN winner (●)`);
         return (
             <div className={classes} title={`투표 완료: ${pollStatus.winningOption}`}>
                 <div className="mx_PollStatusIndicator_abstainIcon">●</div>
@@ -206,9 +250,10 @@ const PollStatusIndicator: React.FC<Props> = ({ room, className }) => {
         );
     }
 
-    // Default case - show generic completed status
+    // Default case - if we can't determine the winner type, show generic completed status
+    console.log(`[PollStatusIndicator] Unknown winner type, showing default (✓)`);
     return (
-        <div className={classes} title={`투표 완료: ${pollStatus.winningOption}`}>
+        <div className={classes} title={`투표 완료: ${pollStatus.winningOption || 'Unknown'}`}>
             <div className="mx_PollStatusIndicator_completedIcon">✓</div>
         </div>
     );
