@@ -472,7 +472,7 @@ export class DAOMnemonicWallet {
     }
 
     // DAO의 원장 룸 찾기
-    private findLedgerRoom(daoId: string): Room | null {
+    public findLedgerRoom(daoId: string): Room | null {
         try {
             const client = MatrixClientPeg.safeGet();
             const daoSpace = client.getRoom(daoId);

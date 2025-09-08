@@ -34,6 +34,10 @@ import PollCreateDialog from "../elements/PollCreateDialog";
 import { MatrixClientPeg } from "../../../MatrixClientPeg";
 import Spinner from "../elements/Spinner";
 import { PollOption } from "../polls/PollOption";
+import VotingPowerDialog from "../dialogs/VotingPowerDialog";
+import { loadVotingPowerSnapshot, getVotingPowerFromSnapshot } from "../../../utils/votingPowerSnapshot";
+import { DAOMnemonicWallet } from "../../../utils/DAOMnemonicWallet";
+import SpaceStore from "../../../stores/spaces/SpaceStore";
 
 interface IState {
     poll?: Poll;
@@ -81,7 +85,7 @@ export function findTopAnswer(pollEvent: MatrixEvent, voteRelations: Relations):
 
     const userVotes: Map<string, UserVote> = collectUserVotes(allVotes(voteRelations));
 
-    const votes: Map<string, number> = countVotes(userVotes, poll);
+    const votes: Map<string, number> = countVotes(userVotes, poll, voteRelations);
     const highestScore: number = Math.max(...votes.values());
 
     const bestAnswerIds: string[] = [];
@@ -205,7 +209,7 @@ export default class MPollBody extends React.Component<IBodyProps, IState> {
         this.unselectIfNewEventFromMe();
     };
 
-    private selectOption(answerId: string): void {
+    private async selectOption(answerId: string): Promise<void> {
         if (this.state.poll?.isEnded) {
             return;
         }
@@ -216,7 +220,75 @@ export default class MPollBody extends React.Component<IBodyProps, IState> {
             return;
         }
 
+        // Check if this is a GOV proposal room and show voting power dialog
+        const room = this.context.getRoom(this.props.mxEvent.getRoomId()!);
+        if (room && this.isGOVProposalRoom(room)) {
+            try {
+                console.log("GOV proposal room detected, checking voting power...");
+                
+                // Load voting power snapshot
+                const snapshot = await loadVotingPowerSnapshot(this.context, room.roomId);
+                if (snapshot) {
+                    // Get user's wallet address
+                    const daoWallet = DAOMnemonicWallet.getInstance();
+                    const daoWallets = daoWallet.getAllDAOWallets();
+                    if (daoWallets.length > 0) {
+                        const userWalletAddress = daoWallets[0].address;
+                        const votingPower = getVotingPowerFromSnapshot(snapshot, userWalletAddress);
+                        
+                        console.log(`User voting power: ${votingPower} for wallet ${userWalletAddress}`);
+                        
+                        if (votingPower > 0) {
+                            // Show voting power dialog
+                            const [shouldVote] = await Modal.createDialog(VotingPowerDialog, {
+                                votingPower,
+                                onFinished: (shouldVote: boolean) => {},
+                            }).finished;
+                            
+                            if (!shouldVote) {
+                                return; // User cancelled
+                            }
+                        } else {
+                            // No voting power
+                            Modal.createDialog(ErrorDialog, {
+                                title: _t("voting|no_voting_power_title"),
+                                description: _t("voting|no_voting_power_description"),
+                            });
+                            return;
+                        }
+                    }
+                }
+            } catch (error) {
+                console.error("Failed to check voting power:", error);
+                // Continue with normal voting if check fails
+            }
+        }
+
         const response = PollResponseEvent.from([answerId], this.props.mxEvent.getId()!).serialize();
+
+        // Add voting power to the response content for GOV proposals
+        const currentRoom = this.context.getRoom(this.props.mxEvent.getRoomId()!);
+        if (currentRoom && this.isGOVProposalRoom(currentRoom)) {
+            try {
+                const snapshot = await loadVotingPowerSnapshot(this.context, currentRoom.roomId);
+                if (snapshot) {
+                    const daoWallet = DAOMnemonicWallet.getInstance();
+                    const daoWallets = daoWallet.getAllDAOWallets();
+                    if (daoWallets.length > 0) {
+                        const userWalletAddress = daoWallets[0].address;
+                        const votingPower = getVotingPowerFromSnapshot(snapshot, userWalletAddress);
+                        
+                        // Add voting power to the response content
+                        response.content["org.matrix.msc3381.voting_power"] = votingPower;
+                        response.content["org.matrix.msc3381.wallet_address"] = userWalletAddress;
+                        
+                        console.log(`Adding voting power ${votingPower} to poll response for wallet ${userWalletAddress}`);
+                    }
+                }
+            } catch (error) {
+                console.error("Failed to add voting power to response:", error);
+            }
+        }
 
         this.context
             .sendEvent(
@@ -281,6 +353,15 @@ export default class MPollBody extends React.Component<IBodyProps, IState> {
         return sum;
     }
 
+    private isGOVProposalRoom(room: any): boolean {
+        // Check if this room is a child of GOV space using SpaceStore
+        const parentSpaces = SpaceStore.instance.getParents(room.roomId);
+        return parentSpaces.some((parent: any) => {
+            const parentRoom = this.context.getRoom(parent.roomId);
+            return parentRoom && parentRoom.name === "GOV";
+        });
+    }
+
     public render(): ReactNode {
         const { poll, pollInitialised } = this.state;
         if (!poll?.pollEvent) {
@@ -292,7 +373,7 @@ export default class MPollBody extends React.Component<IBodyProps, IState> {
         const pollId = this.props.mxEvent.getId()!;
         const isFetchingResponses = !pollInitialised || poll.isFetchingResponses;
         const userVotes = this.collectUserVotes();
-        const votes = countVotes(userVotes, pollEvent);
+        const votes = countVotes(userVotes, pollEvent, this.state.voteRelations);
         const totalVotes = this.totalVotes(votes);
         const winCount = Math.max(...votes.values());
         const userId = this.context.getSafeUserId();
@@ -421,18 +502,39 @@ export function collectUserVotes(
     return userVotes;
 }
 
-export function countVotes(userVotes: Map<string, UserVote>, pollStart: PollStartEvent): Map<string, number> {
+export function countVotes(userVotes: Map<string, UserVote>, pollStart: PollStartEvent, voteRelations?: Relations): Map<string, number> {
     const collected = new Map<string, number>();
 
     for (const response of userVotes.values()) {
         const tempResponse = PollResponseEvent.from(response.answers, "$irrelevant");
         tempResponse.validateAgainst(pollStart);
         if (!tempResponse.spoiled) {
+            // Get voting power from the actual event if available
+            let votingPower = 1; // Default to 1 vote
+            
+            if (voteRelations) {
+                // Find the actual event to get voting power
+                const relations = voteRelations.getRelations();
+                const actualEvent = relations.find(event => 
+                    event.getSender() === response.sender && 
+                    event.getTs() === response.ts
+                );
+                
+                if (actualEvent) {
+                    const content = actualEvent.getContent();
+                    const eventVotingPower = content["org.matrix.msc3381.voting_power"];
+                    if (typeof eventVotingPower === 'number' && eventVotingPower > 0) {
+                        votingPower = eventVotingPower;
+                        console.log(`Using voting power ${votingPower} for user ${response.sender}`);
+                    }
+                }
+            }
+            
             for (const answerId of tempResponse.answerIds) {
                 if (collected.has(answerId)) {
-                    collected.set(answerId, collected.get(answerId)! + 1);
+                    collected.set(answerId, collected.get(answerId)! + votingPower);
                 } else {
-                    collected.set(answerId, 1);
+                    collected.set(answerId, votingPower);
                 }
             }
         }

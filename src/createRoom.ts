@@ -43,6 +43,7 @@ import { PreferredRoomVersions } from "./utils/PreferredRoomVersions";
 import SettingsStore from "./settings/SettingsStore";
 import { MEGOLM_ENCRYPTION_ALGORITHM } from "./utils/crypto";
 import { ElementCallEventType, ElementCallMemberEventType } from "./call-types";
+import { createVotingPowerSnapshot, saveVotingPowerSnapshot } from "./utils/votingPowerSnapshot";
 
 // we define a number of interfaces which take their names from the js-sdk
 /* eslint-disable camelcase */
@@ -522,6 +523,23 @@ export default async function createRoom(client: MatrixClient, opts: IOpts): Pro
                                 
                                 await client.sendMessage(roomId, agendaContent);
                                 logger.info(`Successfully sent GOV ${govAgenda.type} message with ${imageMap.size} images`);
+                                
+                                // Create voting power snapshot for proposals
+                                if (govAgenda.type === 'proposal') {
+                                    try {
+                                        logger.info(`Creating voting power snapshot for proposal: ${govAgenda.name}`);
+                                        const snapshot = await createVotingPowerSnapshot(
+                                            client, 
+                                            roomId, 
+                                            govAgenda.name,
+                                            opts.parentSpace?.roomId || ""
+                                        );
+                                        await saveVotingPowerSnapshot(client, roomId, snapshot);
+                                        logger.info(`Voting power snapshot created and saved for proposal: ${govAgenda.name}`);
+                                    } catch (snapshotError) {
+                                        logger.error(`Failed to create voting power snapshot for proposal:`, snapshotError);
+                                    }
+                                }
                             }
                         } catch (error) {
                             logger.error(`Failed to send GOV ${govAgenda.type} message:`, error);
